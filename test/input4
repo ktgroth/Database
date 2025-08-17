@@ -1,0 +1,13 @@
+insert Kasen Groth
+insert Heidi Gorth
+insert
+Richard Groth
+insert Christian Groth
+print
+update 2 LastName=Groth
+insert Kate Gorth
+insert Camryn Groth
+print
+update 5 FirstName=Katie LastName=Groth
+print
+exit
