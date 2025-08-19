@@ -4,6 +4,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "include/btree.h"
+
 typedef struct
 {
     int id;
@@ -283,6 +285,9 @@ int main(int argc, char *argv[])
         .size = 0,
         .persons = NULL,
     };
+
+    btree_t *root = init_btree(1, 2);
+    print_btree(root, 0);
 
     char input[256];
     while (strncmp(input, "exit", strlen("exit")))
