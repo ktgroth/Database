@@ -52,7 +52,7 @@ void print_btree(btree_t *root, size_t level)
         if (!root->is_leaf)
             print_btree(root->children[i], level + 1);
 
-        for (int j = 0; j < level; ++j)
+        for (size_t j = 0; j < level; ++j)
             printf("\t");
         printf("%d\n", root->keys[i]);
     }
@@ -141,7 +141,6 @@ void btree_add(btree_t **root, int key)
     ++curr->nkeys;
 }
 
-static btree_t **croot;
 void btree_delete_merge(btree_t *node, size_t i, size_t j);
 void btree_delete_sibling(btree_t *node, size_t i, size_t j);
 void btree_delete_internal(btree_t *node, int key, size_t i);
@@ -166,7 +165,6 @@ void btree_merge(btree_t *parent, size_t idx)
 {
     btree_t *child = parent->children[idx];
     btree_t *sibling = parent->children[idx + 1];
-    size_t u = child->u;
 
     child->keys[child->nkeys] = parent->keys[idx];
     for (size_t i = 0; i < sibling->nkeys; ++i)
@@ -312,6 +310,22 @@ void btree_remove(btree_t **root, int key)
 
 int btree_search(btree_t *root, int key)
 {
+    if (!root)
+        return 0;
 
+    btree_t *curr = root;
+    while (curr)
+    {
+        size_t idx = 0;
+        while (idx < curr->nkeys && curr->keys[idx] < key)
+            ++idx;
+
+        if (idx < curr->nkeys && curr->keys[idx] == key)
+            return 1;
+
+        curr = curr->children[idx];
+    }
+
+    return 0;
 }
 

@@ -314,6 +314,10 @@ int main(int argc, char *argv[])
     print_btree(root, 0);
     printf("\n\n");
 
+    printf("SEARCH 17: %d\n", btree_search(root, 17));
+    printf("SEARCH 21: %d\n", btree_search(root, 21));
+    printf("SEARCH 40: %d\n", btree_search(root, 40));
+
     btree_remove(&root, 21);
     btree_remove(&root, 30);
     btree_remove(&root, 27);
@@ -322,6 +326,10 @@ int main(int argc, char *argv[])
     btree_remove(&root, 9);
     print_btree(root, 0);
     printf("\n\n");
+
+    printf("SEARCH 17: %d\n", btree_search(root, 17));
+    printf("SEARCH 21: %d\n", btree_search(root, 21));
+    printf("SEARCH 40: %d\n", btree_search(root, 40));
 
 
     char input[256];
