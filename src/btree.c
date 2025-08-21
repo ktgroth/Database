@@ -26,6 +26,22 @@ btree_t *init_btree(int is_leaf, size_t u)
     return bt;
 }
 
+void free_btree(btree_t *node)
+{
+    if (!node)
+        return;
+
+    if (node->is_leaf)
+    {
+        for (size_t i = 0; i <= node->nkeys; ++i)
+            free_btree(node->children[i]);
+        free(node->children);
+    }
+
+    free(node->keys);
+    free(node);
+}
+
 void print_btree(btree_t *root, size_t level)
 {
     if (!root)
@@ -50,30 +66,33 @@ void btree_split_child(btree_t *parent, size_t i)
     btree_t *child = parent->children[i];
     size_t u = child->u;
 
-    int mkey = child->keys[u - 1];
-    for (size_t j = parent->nkeys; j > i + 1; --j)
-        parent->keys[j] = parent->keys[j - 1];
-    parent->keys[i] = mkey;
-    ++parent->nkeys;
-
     btree_t *new_child = init_btree(child->is_leaf, u);
-    for (size_t j = parent->nkeys; j > i + 1; --j)
-        parent->children[j] = parent->children[j - 1];
-    parent->children[i + 1] = new_child;
-
-    child->nkeys = u - 1;
     new_child->nkeys = u - 1;
-    for (size_t j = 0; j < u; ++j)
+
+    for (size_t j = 0; j < u - 1; ++j)
         new_child->keys[j] = child->keys[u + j];
 
     if (!child->is_leaf)
     {
-        for (size_t j = 0; j <= u; ++j)
+        for (size_t j = 0; j < u; ++j)
         {
             new_child->children[j] = child->children[u + j];
             child->children[u + j] = NULL;
         }
     }
+
+    int mkey = child->keys[u - 1];
+    child->nkeys = u - 1;
+
+    for (size_t j = parent->nkeys + 1; j > i + 1; --j)
+        parent->children[j] = parent->children[j - 1];
+    parent->children[i + 1] = new_child;
+
+    for (size_t j = parent->nkeys; j > i; --j)
+        parent->keys[j] = parent->keys[j - 1];
+    parent->keys[i] = mkey;
+
+    ++parent->nkeys;
 }
 
 void btree_add(btree_t **root, int key)
@@ -99,10 +118,7 @@ void btree_add(btree_t **root, int key)
     {
         size_t idx = curr->nkeys;
         while (idx > 0 && curr->keys[idx - 1] > key)
-        {
-            curr->keys[idx] = curr->keys[idx - 1];
             --idx;
-        }
 
         if (curr->children[idx]->nkeys == t)
         {
@@ -125,62 +141,113 @@ void btree_add(btree_t **root, int key)
     ++curr->nkeys;
 }
 
-
+static btree_t **croot;
 void btree_delete_merge(btree_t *node, size_t i, size_t j);
 void btree_delete_sibling(btree_t *node, size_t i, size_t j);
 void btree_delete_internal(btree_t *node, int key, size_t i);
 
-int btree_delete_predecessor(btree_t *node)
+int btree_get_predecessor(btree_t *node, size_t idx)
 {
-    if (node->is_leaf)
-        return node->keys[--node->nkeys];
-
-
+    node = node->children[idx];
+    while (!node->is_leaf)
+        node = node->children[node->nkeys];
+    return node->keys[node->nkeys - 1];
 }
 
-int btree_delete_successor(btree_t *node)
+int btree_get_successor(btree_t *node, size_t idx)
 {
-
+    node = node->children[idx + 1];
+    while (!node->is_leaf)
+        node = node->children[0];
+    return node->keys[0];
 }
 
-void btree_delete_internal(btree_t *node, int key, size_t i)
+void btree_merge(btree_t *parent, size_t idx)
+{
+    btree_t *child = parent->children[idx];
+    btree_t *sibling = parent->children[idx + 1];
+    size_t u = child->u;
+
+    child->keys[child->nkeys] = parent->keys[idx];
+    for (size_t i = 0; i < sibling->nkeys; ++i)
+        child->keys[child->nkeys + 1 + i] = sibling->keys[i];
+
+    if (!child->is_leaf)
+    {
+        for (size_t i = 0; i <= sibling->nkeys; ++i)
+        {
+            child->children[child->nkeys + 1 + i] = sibling->children[i];
+            sibling->children[i] = NULL;
+        }
+    }
+
+    child->nkeys += 1 + sibling->nkeys;
+    for (size_t i = idx; i + 1 < parent->nkeys; ++i)
+        parent->keys[i] = parent->keys[i + 1];
+    for (size_t i = idx + 1; i + 1 <= parent->nkeys; ++i)
+        parent->children[i] = parent->children[i + 1];
+
+    parent->children[parent->nkeys] = NULL;
+    --parent->nkeys;
+
+    sibling->nkeys = 0;
+    free_btree(sibling);
+}
+
+void btree_fill(btree_t *node, size_t idx)
 {
     size_t u = node->u;
 
-    if (node->is_leaf)
+    if (idx != 0 && node->children[idx - 1] && node->children[idx - 1]->nkeys >= u)
     {
-        if (i < node->nkeys && node->keys[i] == key)
+        btree_t *child = node->children[idx];
+        btree_t *left = node->children[idx - 1];
+
+        for (size_t i = child->nkeys; i > 0; --i)
+            child->keys[i] = child->keys[i - 1];
+        if (!child->is_leaf)
         {
-            for (; i < node->nkeys - 1; ++i)
-                node->keys[i] = node->keys[i + 1];
-            --node->nkeys;
+            for (size_t i = child->nkeys + 1; i > 0; --i)
+                child->children[i] = child->children[i - 1];
+            child->children[0] = left->children[left->nkeys];
+            left->children[left->nkeys] = NULL;
         }
 
+        child->keys[0] = node->keys[idx - 1];
+        node->keys[idx - 1] = left->keys[left->nkeys - 1];
+
+        ++child->nkeys;
+        --left->nkeys;
         return;
     }
 
-    if (node->children[i]->nkeys >= u)
+    if (idx != node->nkeys && node->children[idx + 1] && node->children[idx + 1]->nkeys >= u)
     {
-        node->keys[i] = btree_delete_predecessor(node->children[i]);
-        return;
-    } else if (node->children[i + 1]->nkeys >= u)
-    {
-        node->keys[i] = btree_delete_successor(node->children[i + 1]);
+        btree_t *child = node->children[idx];
+        btree_t *right = node->children[idx + 1];
+
+        child->keys[child->nkeys] = node->keys[idx];
+        if (!child->is_leaf)
+        {
+            child->children[child->nkeys + 1] = right->children[0];
+            for (size_t i = 0; i + 1 <= right->nkeys; ++i)
+                right->children[i] = right->children[i + 1];
+            right->children[right->nkeys] = NULL;
+        }
+
+        node->keys[idx] = right->keys[0];
+        for (size_t i = 0; i + 1 < right->nkeys; ++i)
+            right->keys[i] = right->keys[i + 1];
+
+        ++child->nkeys;
+        --right->nkeys;
         return;
     }
 
-    btree_delete_merge(node, i, i + 1);
-    btree_delete_internal(node->children[i], key, u - 1);
-}
-
-void btree_delete_sibling(btree_t *node, size_t i, size_t j)
-{
-
-}
-
-void btree_delete_merge(btree_t *node, size_t i, size_t j)
-{
-
+    if (idx < node->nkeys)
+        btree_merge(node, idx);
+    else
+        btree_merge(node, idx - 1);
 }
 
 void btree_remove(btree_t **root, int key)
@@ -190,7 +257,6 @@ void btree_remove(btree_t **root, int key)
 
     btree_t *curr = *root;
     size_t u = curr->u;
-    size_t t = 2*u - 1;
 
     while (curr)
     {
@@ -198,49 +264,49 @@ void btree_remove(btree_t **root, int key)
         while (idx < curr->nkeys && curr->keys[idx] < key)
             ++idx;
 
-        if (curr->is_leaf)
-        {
-            if (idx < curr->nkeys && curr->keys[idx] == key)
-            {
-                for (; idx < curr->nkeys - 1; ++idx)
-                    curr->keys[idx] = curr->keys[idx + 1];
-                --curr->nkeys;
-            }
-
-            return;
-        }
-
         if (idx < curr->nkeys && curr->keys[idx] == key)
         {
-            btree_delete_internal(curr, key, idx);
-            return;
-        } else if (curr->children[idx]->nkeys >= u);
-        else
-        {
-            if (idx != 0 && idx + 2 <= curr->nkeys && curr->children[idx + 2])
+            if (curr->is_leaf)
             {
-                if (curr->children[idx - 1]->nkeys >= u)
-                    btree_delete_sibling(curr, idx, idx - 1);
-                else if (curr->children[idx + 1]->nkeys >= u)
-                    btree_delete_sibling(curr, idx, idx + 1);
-                else
-                    btree_delete_merge(curr, idx, idx + 1);
-            } else if (idx == 0)
+                for (size_t i = idx; i + 1 < curr->nkeys; ++i)
+                    curr->keys[i] = curr->keys[i + 1];
+                --curr->nkeys;
+
+                break;
+            } else
             {
-                if (curr->children[idx + 1]->nkeys >= u)
-                    btree_delete_sibling(curr, idx, idx + 1);
-                else
-                    btree_delete_merge(curr, idx, idx + 1);
-            } else if (idx + 1 <= curr->nkeys && curr->children[idx + 1])
-            {
-                if (curr->children[idx - 1]->nkeys >= u)
-                    btree_delete_sibling(curr, idx, idx - 1);
-                else
-                    btree_delete_merge(curr, idx, idx - 1);
+                if (curr->children[idx]->nkeys >= u)
+                {
+                    int pred = btree_get_predecessor(curr, idx);
+                    curr->keys[idx] = pred;
+                    key = pred;
+                } else if (curr->children[idx + 1]->nkeys >= u)
+                {
+                    int succ = btree_get_successor(curr, idx);
+                    curr->keys[idx++] = succ;
+                    key = succ;
+                } else
+                    btree_merge(curr, idx);
             }
+        } else
+        {
+            if (curr->children[idx]->nkeys < u)
+                btree_fill(curr, idx);
+
+            if (idx > curr->nkeys)
+                idx = curr->nkeys;
         }
 
         curr = curr->children[idx];
+    }
+
+    if ((*root)->nkeys == 0)
+    {
+        btree_t *old = *root;
+        if ((*root)->is_leaf);
+        else
+            *root = (*root)->children[0];
+        free_btree(old);
     }
 }
 

@@ -287,7 +287,42 @@ int main(int argc, char *argv[])
     };
 
     btree_t *root = init_btree(1, 2);
+    btree_add(&root, 1);
+    btree_add(&root, 9);
+    btree_add(&root, 17);
+    btree_add(&root, 19);
+    btree_add(&root, 21);
+    btree_add(&root, 23);
+    btree_add(&root, 25);
+    btree_add(&root, 27);
+    btree_add(&root, 31);
+    btree_add(&root, 32);
+    btree_add(&root, 39);
+    btree_add(&root, 41);
+    btree_add(&root, 47);
+    btree_add(&root, 50);
+    btree_add(&root, 56);
+    btree_add(&root, 60);
+    btree_add(&root, 90);
+    btree_add(&root, 72);
+    btree_add(&root, 15);
+    btree_add(&root, 22);
+    btree_add(&root, 30);
+    btree_add(&root, 63);
+    btree_add(&root, 55);
+    btree_add(&root, 40);
     print_btree(root, 0);
+    printf("\n\n");
+
+    btree_remove(&root, 21);
+    btree_remove(&root, 30);
+    btree_remove(&root, 27);
+    btree_remove(&root, 22);
+    btree_remove(&root, 17);
+    btree_remove(&root, 9);
+    print_btree(root, 0);
+    printf("\n\n");
+
 
     char input[256];
     while (strncmp(input, "exit", strlen("exit")))
