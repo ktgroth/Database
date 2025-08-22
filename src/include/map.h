@@ -5,11 +5,12 @@
 #include <string.h>
 
 #include "id.h"
+#include "data.h"
 
 typedef struct pair
 {
     db_id_t id;
-    int value;
+    datablock_t *value;
     struct pair *next;
 } pair_t;
 
@@ -36,9 +37,9 @@ static inline size_t hash(db_id_t id, size_t size)
 }
 
 
-void map_add(hashmap_t *map, db_id_t id, int value);
+void map_add(hashmap_t *map, db_id_t id, datablock_t *value);
 void map_remove(hashmap_t *map, db_id_t id);
-int map_search(hashmap_t *map, db_id_t id);
+datablock_t *map_search(hashmap_t *map, db_id_t id);
 
 #endif
 

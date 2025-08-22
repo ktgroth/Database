@@ -39,7 +39,7 @@ size_t hashi(size_t id, size_t size)
     return id % size;
 }
 
-void map_add(hashmap_t *map, db_id_t id, int value)
+void map_add(hashmap_t *map, db_id_t id, datablock_t *value)
 {
     size_t h = hash(id, map->size);
 
@@ -81,7 +81,7 @@ void map_remove(hashmap_t *map, db_id_t id)
     free(p);
 }
 
-int map_search(hashmap_t *map, db_id_t id)
+datablock_t *map_search(hashmap_t *map, db_id_t id)
 {
     size_t h = hash(id, map->size);
 
