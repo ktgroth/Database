@@ -9,12 +9,12 @@
 #define find(x, id) \
     _Generic((x), \
         dataframe_t *:  findf, \
-        btree_t *:      findt, \
-        hashmap_t *:    findm  \
+        btree_t *:      btree_search, \
+        hashmap_t *:    map_add  \
     )(x, id)
 
+
 datablock_t *findf(dataframe_t *frame, db_id_t id);
-datablock_t *findt(btree_t *tree, db_id_t id);
 datablock_t *findm(hashmap_t *map, db_id_t id);
 
 

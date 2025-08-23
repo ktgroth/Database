@@ -8,6 +8,13 @@
 #include <ctype.h>
 #include <assert.h>
 
+
+#define LT(x, y)    (cmp(x, y) < 0) 
+#define LTE(x, y)   (cmp(x, y) <= 0)
+#define EQ(x, y)    (cmp(x, y) == 0)
+#define GTE(x, y)   (cmp(x, y) >= 0)
+#define GT(x, y)    (cmp(x, y) > 0)
+
 enum
 {
     ID_INT,
@@ -27,17 +34,31 @@ typedef struct
 
 #define id(x) \
     _Generic((x), \
-        int:    idi, \
-        char *: ids  \
+        int:        idi, \
+        size_t:     idi, \
+        char *:     ids  \
     )(x)
 
-db_id_t ids(char *id);
-db_id_t idi(int id);
+static inline db_id_t ids(char *id)
+{
+    return (db_id_t){
+        .type = ID_CHAR,
+        .cid = id
+    };
+}
 
-inline db_id_t idd(void * id, int is_int)
+static inline db_id_t idi(size_t id)
+{
+    return (db_id_t){
+        .type = ID_INT,
+        .iid = id
+    };
+}
+
+static inline db_id_t idd(void * id, int is_int)
 {
     if (is_int)
-        return idi(*(int *)id);
+        return idi(*(size_t *)id);
 
     return ids((char *)id);
 }
@@ -52,12 +73,14 @@ inline int cmp(db_id_t x, db_id_t y)
 
     switch (x.type)
     {
-        case ID_INT:    return cmp_size_t(x.iid, x.iid);
+        case ID_INT:    return cmp_size_t(x.iid, y.iid);
         case ID_CHAR:   return cmp_str_t(x.cid, y.cid);
     }
 
     assert(0);
 }
+
+void print_id(db_id_t id, char *buf, size_t bufsize);
 
 #endif
 

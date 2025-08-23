@@ -282,53 +282,76 @@
 
 int main(int argc, char *argv[])
 {
+    printf("1 < 2: %d\n", LT(id(1), id(2)));
+    printf("2 < 1: %d\n", LT(id(2), id(1)));
+    printf("1 < 1: %d\n\n", LT(id(1), id(1)));
+
+    printf("1 <= 2: %d\n", LTE(id(1), id(2)));
+    printf("2 <= 1: %d\n", LTE(id(2), id(1)));
+    printf("1 <= 1: %d\n\n", LTE(id(1), id(1)));
+
+    printf("1 == 2: %d\n", EQ(id(1), id(2)));
+    printf("2 == 1: %d\n", EQ(id(2), id(1)));
+    printf("1 == 1: %d\n\n", EQ(id(1), id(1)));
+
+    printf("1 >= 2: %d\n", GTE(id(1), id(2)));
+    printf("2 >= 1: %d\n", GTE(id(2), id(1)));
+    printf("1 >= 1: %d\n\n", GTE(id(1), id(1)));
+
+    printf("1 > 2: %d\n", GT(id(1), id(2)));
+    printf("2 > 1: %d\n", GT(id(2), id(1)));
+    printf("1 > 1: %d\n\n", GT(id(1), id(1)));
+ 
     btree_t *root = init_btree(1, 2);
-    btree_add(&root, 1);
-    btree_add(&root, 9);
-    btree_add(&root, 17);
-    btree_add(&root, 19);
-    btree_add(&root, 21);
-    btree_add(&root, 23);
-    btree_add(&root, 25);
-    btree_add(&root, 27);
-    btree_add(&root, 31);
-    btree_add(&root, 32);
-    btree_add(&root, 39);
-    btree_add(&root, 41);
-    btree_add(&root, 47);
-    btree_add(&root, 50);
-    btree_add(&root, 56);
-    btree_add(&root, 60);
-    btree_add(&root, 90);
-    btree_add(&root, 72);
-    btree_add(&root, 15);
-    btree_add(&root, 22);
-    btree_add(&root, 30);
-    btree_add(&root, 63);
-    btree_add(&root, 55);
-    btree_add(&root, 40);
+    btree_add(&root, id(1));
+    btree_add(&root, id(9));
+    btree_add(&root, id(17));
+    btree_add(&root, id(19));
+    btree_add(&root, id(21));
+    btree_add(&root, id(23));
+    btree_add(&root, id(25));
+    btree_add(&root, id(27));
+    btree_add(&root, id(31));
+    btree_add(&root, id(32));
+    btree_add(&root, id(39));
+    btree_add(&root, id(41));
+    btree_add(&root, id(47));
+    btree_add(&root, id(50));
+    btree_add(&root, id(56));
+    btree_add(&root, id(60));
+    btree_add(&root, id(90));
+    btree_add(&root, id(72));
+    btree_add(&root, id(15));
+    btree_add(&root, id(22));
+    btree_add(&root, id(30));
+    btree_add(&root, id(63));
+    btree_add(&root, id(55));
+    btree_add(&root, id(40));
     print_btree(root, 0);
     printf("\n\n");
 
-    printf("SEARCH 17: %d\n", btree_search(root, 17));
-    printf("SEARCH 21: %d\n", btree_search(root, 21));
-    printf("SEARCH 40: %d\n", btree_search(root, 40));
+    printf("SEARCH 17: %p\n", btree_search(root, id(17)));
+    printf("SEARCH 21: %p\n", btree_search(root, id(21)));
+    printf("SEARCH 40: %p\n", btree_search(root, id(40)));
+    printf("SEARCH 41: %p\n", btree_search(root, id(41)));
 
-    btree_remove(&root, 21);
-    btree_remove(&root, 30);
-    btree_remove(&root, 27);
-    btree_remove(&root, 22);
-    btree_remove(&root, 17);
-    btree_remove(&root, 9);
+    btree_remove(&root, id(21));
+    btree_remove(&root, id(30));
+    btree_remove(&root, id(27));
+    btree_remove(&root, id(22));
+    btree_remove(&root, id(17));
+    btree_remove(&root, id(41));
+    btree_remove(&root, id(9));
     print_btree(root, 0);
     printf("\n\n");
 
-    printf("SEARCH 17: %d\n", btree_search(root, 17));
-    printf("SEARCH 21: %d\n", btree_search(root, 21));
-    printf("SEARCH 40: %d\n", btree_search(root, 40));
+    printf("SEARCH 17: %p\n", btree_search(root, id(17)));
+    printf("SEARCH 21: %p\n", btree_search(root, id(21)));
+    printf("SEARCH 40: %p\n", btree_search(root, id(40)));
+    printf("SEARCH 41: %p\n", btree_search(root, id(41)));
 
-    update(root, NULL, NULL, id(1));
-    find(root, id(1));
+    // update(root, NULL, NULL, id(1));
+    // find(root, id(1));
 
     // dataframe_t df = {
     //     .size = 0,

@@ -1,19 +1,20 @@
 
 #include "include/id.h"
 
-db_id_t ids(char *id)
+void print_id(db_id_t id, char *buf, size_t bufsize)
 {
-    return (db_id_t){
-        .type=ID_CHAR,
-        .cid=id
-    };
-}
+    switch (id.type)
+    {
+        case ID_INT:
+            snprintf(buf, bufsize, "%ld", id.iid);
+            break;
 
-db_id_t idi(int id)
-{
-    return (db_id_t){
-        .type=ID_INT,
-        .iid=id
-    };
+        case ID_CHAR:
+            snprintf(buf, bufsize, "%s", id.cid);
+            break;
+
+        default:
+            snprintf(buf, bufsize, "<invalid>");
+    }
 }
 
