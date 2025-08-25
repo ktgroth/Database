@@ -1,0 +1,9 @@
+insert Kasen Groth
+insert
+Heidi Groth
+insert Christian Groth
+insert Christian Alves
+print
+find FirstName=Christian
+find LastName =Groth
+exit
