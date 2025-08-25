@@ -39,6 +39,7 @@ static inline size_t hash(db_id_t id, size_t size)
 
 void map_add(hashmap_t *map, db_id_t id, datablock_t *value);
 void map_remove(hashmap_t *map, db_id_t id);
+void map_change(hashmap_t *map, db_id_t id, datablock_t *value);
 datablock_t *map_search(hashmap_t *map, db_id_t id);
 
 #endif

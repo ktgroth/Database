@@ -1,18 +1,16 @@
 #!/bin/bash
 
 CC="gcc"
-GOC="gccgo"
-LD="gccgo"
+LD="gcc"
 
-CFLAGS="-O2 -Wall -Wextra -g -lgo -lgcc_s -lpthread -ldl -lm"
-GOFLAGS="-fgo-pkgpath=sqlparser"
-LFLAGS=""
+CFLAGS="-O2 -Wall -Wextra -g -I../SQLParser/build"
+LFLAGS="-L../SQLParser/build -lsqlparser"
 
 SRC=src
 OBJ=obj
 BUILD=build
 
-SRCS=($(find "$SRC" -name "*.c" -o -path "$SRC" -name "*.c") $(find "$SRC" -name "*.go" -o -path "$SRC" -name "*.go"))
+SRCS=($(find "$SRC" -name "*.c" -o -path "$SRC" -name "*.c"))
 OBJSK=()
 
 for src in "${SRCS[@]}"; do
@@ -30,22 +28,14 @@ function build {
         src="${SRCS[$i]}"
         obj="${OBJSK[$i]}"
 
-        case "$src" in
-        *.c) compc $src $obj ;;
-        *.go) compgo $src $obj ;;
-        *) echo "Unkown file type: $src" ;;
-        esac
+        comp $src $obj
     done
 
     $LD $LFLAGS "${OBJSK[@]}" -o $OUTPUT
 }
 
-function compc {
+function comp {
     $CC $CFLAGS -c $1 -o $2
-}
-
-function compgo {
-    $GOC $CFLAGS -c $1 -o $2
 }
 
 function clean {

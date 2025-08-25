@@ -6,37 +6,38 @@
 #include "btree.h"
 #include "map.h"
 
-#define find(x, id) \
+
+#define add_db(x, data) \
     _Generic((x), \
-        dataframe_t *:  findf, \
-        btree_t *:      btree_search, \
-        hashmap_t *:    map_add  \
+        dataframe_t *:  \
+        btree_t *:      \
+        hashmap_t *:    \
     )(x, id)
 
 
-datablock_t *findf(dataframe_t *frame, db_id_t id);
-datablock_t *findm(hashmap_t *map, db_id_t id);
-
-
-#define GET_MACRO(_1, _2, _3, _4, NAME, ...) NAME
-
-#define update3(x, cols, data) \
-    updateb(x, cols, data)
-
-#define update4(x, cols, data, id) \
+#define find_db(x, id) \
     _Generic((x), \
-        dataframe_t *:  updatef, \
-        btree_t *:      updatet, \
-        hashmap_t *:    updatem  \
-    )(x, cols, data, id)
+        dataframe_t *:  frame_search, \
+        btree_t *:      btree_search, \
+        hashmap_t *:    map_search    \
+    )(x, id)
 
-#define update(...) \
-    GET_MACRO(__VA_ARGS__, update4, update3)(__VA_ARGS__)
 
-int updateb(datablock_t *block, char *cols, void *data);
-int updatef(datablock_t *frame, char *cols, void *data, db_id_t id);
-int updatet(btree_t *tree, char *cols, void *data, db_id_t id);
-int updatem(hashmap_t *map, char *cols, void *data, db_id_t id);
+#define change_db(x, id, data) \
+    _Generic((x), \
+        datablock_t *:  block_change, \
+        dataframe_t *:  frame_change, \
+        btree_t *:      btree_change, \
+        hashmap_t *:    map_change    \
+    )(x, id, data)
+
+
+#define remove_db(x, id) \
+    _Generic((x), \
+        dataframe_t *:  frame_remove, \
+        btree_t *:      btree_remove, \
+        hashmap_t *:    map_remove    \
+    )(x, id)
 
 #endif
 
