@@ -17,11 +17,14 @@ typedef struct btree
 } btree_t;
 
 btree_t *init_btree(int is_leaf, size_t u);
+void free_btree(btree_t *node);
 void print_btree(btree_t *root, size_t level);
 
-void btree_add(btree_t **root, db_id_t key, datablock_t *block);
+db_id_t btree_key(btree_t *root);
+
+void btree_add(btree_t **root, datablock_t *block);
 void btree_remove(btree_t **root, db_id_t key);
-void btree_change(btree_t **root, db_id_t key, datablock_t *block);
+void btree_change(btree_t *root, db_id_t key, datablock_t *block);
 datablock_t *btree_search(btree_t *root, db_id_t key);
 
 #endif

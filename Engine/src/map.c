@@ -25,6 +25,22 @@ hashmap_t *init_map(size_t size)
     return map;
 }
 
+void free_map(hashmap_t *map)
+{
+
+}
+
+void print_map(hashmap_t *map)
+{
+
+}
+
+
+db_id_t map_key(hashmap_t *map)
+{
+
+}
+
 size_t hashs(char *id, size_t size)
 {
     size_t h = 0;
@@ -39,8 +55,12 @@ size_t hashi(size_t id, size_t size)
     return id % size;
 }
 
-void map_add(hashmap_t *map, db_id_t id, datablock_t *value)
+void map_add(hashmap_t *map, datablock_t *value)
 {
+    if (!map)
+        return;
+
+    db_id_t id = map_key(map);
     size_t h = hash(id, map->size);
 
     if (!map->pairs[h])

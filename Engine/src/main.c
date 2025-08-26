@@ -283,9 +283,6 @@
 
 int main(int argc, char *argv[])
 {
-    // update(root, NULL, NULL, id(1));
-    // find(root, id(1));
-
     // dataframe_t df = {
     //     .size = 0,
     //     .persons = NULL,

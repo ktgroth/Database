@@ -3,8 +3,8 @@
 CC="gcc"
 LD="gcc"
 
-CFLAGS="-O2 -Wall -Wextra -g -I../SQLParser/build"
-LFLAGS="-L../SQLParser/build -lsqlparser"
+CFLAGS="-O2 -Wall -Wextra -g" # -I../SQLParser/build"
+LFLAGS=""                     #"-L../SQLParser/build -lsqlparser"
 
 SRC=src
 OBJ=obj
