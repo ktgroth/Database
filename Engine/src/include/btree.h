@@ -2,9 +2,7 @@
 #ifndef GDB_BTREE_
 #define GDB_BTREE_
 
-#include "id.h"
-#include "data.h"
-
+#include "datablock.h"
 
 typedef struct btree
 {
