@@ -65,11 +65,6 @@ void print_btree(btree_t *root, size_t level)
         print_btree(root->children[root->nkeys], level + 1);
 }
 
-db_id_t btree_key(btree_t *root)
-{
-    
-}
-
 
 void btree_split_child(btree_t *parent, size_t i)
 {
@@ -105,12 +100,11 @@ void btree_split_child(btree_t *parent, size_t i)
     ++parent->nkeys;
 }
 
-void btree_add(btree_t **root, datablock_t *block)
+void btree_add(btree_t **root, db_id_t key, datablock_t *block)
 {
     if (!root || !*root)
         return;
 
-    db_id_t key = btree_key(*root);
     btree_t *curr = *root;
     size_t u = curr->u;
     size_t t = 2*u - 1;

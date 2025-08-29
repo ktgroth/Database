@@ -2,10 +2,6 @@
 #ifndef GDB_DB_
 #define GDB_DB_
 
-#include "data.h"
-#include "btree.h"
-#include "map.h"
-
 
 #define generate_key(x) \
     _Generic((x), \

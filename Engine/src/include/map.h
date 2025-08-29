@@ -25,8 +25,6 @@ hashmap_t *init_map(size_t size);
 void free_map(hashmap_t *map);
 void print_map(hashmap_t *map);
 
-db_id_t map_key(hashmap_t *map);
-
 size_t hashs(char *id, size_t size);
 size_t hashi(size_t id, size_t size);
 
@@ -41,7 +39,7 @@ static inline size_t hash(db_id_t id, size_t size)
 }
 
 
-void map_add(hashmap_t *map, datablock_t *value);
+void map_add(hashmap_t *map, db_id_t key, datablock_t *value);
 void map_remove(hashmap_t *map, db_id_t id);
 void map_change(hashmap_t *map, db_id_t id, datablock_t *value);
 datablock_t *map_search(hashmap_t *map, db_id_t id);

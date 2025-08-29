@@ -35,12 +35,6 @@ void print_map(hashmap_t *map)
 
 }
 
-
-db_id_t map_key(hashmap_t *map)
-{
-
-}
-
 size_t hashs(char *id, size_t size)
 {
     size_t h = 0;
@@ -55,7 +49,7 @@ size_t hashi(size_t id, size_t size)
     return id % size;
 }
 
-void map_add(hashmap_t *map, datablock_t *value)
+void map_add(hashmap_t *map, db_id_t key, datablock_t *value)
 {
     if (!map)
         return;
