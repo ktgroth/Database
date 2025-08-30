@@ -1,16 +1,11 @@
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-
-#include "include/btree.h"
-#include "include/database.h"
+#define UNUSED(x) (void)(x);
 
 
 int main(int argc, char *argv[])
 {
-    
+    UNUSED(argc)
+    UNUSED(argv);
 
     return 0;
 }

@@ -6,24 +6,39 @@
 
 typedef size_t db_id_t;
 
-typedef struct btree
+typedef struct btree_node
 {
-    db_id_t *keys;
-    datablock_t **dptr;
-    size_t nkeys;
-    struct btree **children;
-    int is_leaf;
-    size_t u;
+    size_t              u;
+    int                 is_leaf;
+    size_t              nkeys;
+    void                **keys;
+    datablock_t         **dptr;
+    struct btree_node   **children;
+} btree_node_t;
+
+typedef struct
+{
+    size_t          u;
+    const char      *colname;
+    type_e          coltype;
+    btree_node_t    *root;
 } btree_t;
 
-btree_t *init_btree(int is_leaf, size_t u);
-void free_btree(btree_t *node);
-void print_btree(btree_t *root, size_t level);
 
-void btree_add(btree_t **root, db_id_t key, datablock_t *block);
-void btree_remove(btree_t **root, db_id_t key);
-void btree_change(btree_t *root, db_id_t key, datablock_t *block);
-datablock_t *btree_search(btree_t *root, db_id_t key);
+btree_node_t *init_btree_node(int is_leaf, size_t u);
+void free_btree_node(btree_node_t *node);
+void print_btree_node(const btree_node_t *node, type_e type, size_t level);
+
+
+btree_t *init_btree(size_t u, const char *colname, const type_e coltype);
+void free_btree(btree_t *tree);
+void print_btree(const btree_t *tree);
+
+
+int btree_add(btree_t *tree, void *key, datablock_t *block);
+int btree_remove(btree_t *tree, const void *key);
+int btree_update(btree_t *tree, const void *key, const datablock_t *block);
+const datablock_t *btree_search(const btree_t *tree, const void *key);
 
 #endif
 

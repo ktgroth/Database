@@ -13,7 +13,7 @@ typedef struct
 } datablock_t;
 
 
-datablock_t *init_block(const dataframe_t *frame, const void **values);
+datablock_t *init_block(const dataframe_t *frame, void **values);
 void free_block(datablock_t *block);
 void print_block(const datablock_t *block);
 

@@ -15,7 +15,7 @@ typedef struct dataframe
     datablock_t     **rows;
 } dataframe_t;
 
-datablock_t *init_block(const dataframe_t *frame, const void **values)
+datablock_t *init_block(const dataframe_t *frame, void **values)
 {
     if (!frame || !values)
         return NULL;

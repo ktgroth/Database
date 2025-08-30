@@ -64,7 +64,7 @@ void print_frame(const dataframe_t *frame)
 }
 
 
-int frame_add(dataframe_t *frame, const datablock_t *values)
+int frame_add(dataframe_t *frame, datablock_t *values)
 {
     if (!frame || !values)
         return 0;
