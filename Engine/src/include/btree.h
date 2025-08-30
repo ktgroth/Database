@@ -4,6 +4,8 @@
 
 #include "datablock.h"
 
+typedef size_t db_id_t;
+
 typedef struct btree
 {
     db_id_t *keys;
