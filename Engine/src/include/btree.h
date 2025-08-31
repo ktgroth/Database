@@ -2,6 +2,7 @@
 #ifndef GDB_BTREE_
 #define GDB_BTREE_
 
+#include "types.h"
 #include "datablock.h"
 
 typedef size_t db_id_t;

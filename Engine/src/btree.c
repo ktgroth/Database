@@ -42,24 +42,26 @@ void free_btree_node(btree_node_t *node)
     free(node);
 }
 
-void print_btree_node(const btree_node_t *root, type_e type, size_t level)
+void print_btree_node(const btree_node_t *node, type_e type, size_t level)
 {
-    if (!root)
+    if (!node)
         return;
 
-    for (size_t i = 0; i < root->nkeys; ++i)
+    for (size_t i = 0; i < node->nkeys; ++i)
     {
-        if (!root->is_leaf)
-            print_btree_node(root->children[i], type, level + 1);
+        if (!node->is_leaf)
+            print_btree_node(node->children[i], type, level + 1);
 
         for (size_t j = 0; j < level; ++j)
             printf("\t");
 
-        print_value(type, root->keys[i]);
+        print_value(type, node->keys[i]);
+        puts("");
+        print_block(node->dptr[i]);
     }
 
-    if (!root->is_leaf)
-        print_btree_node(root->children[root->nkeys], type, level + 1);
+    if (!node->is_leaf)
+        print_btree_node(node->children[node->nkeys], type, level + 1);
 }
 
 
@@ -151,7 +153,7 @@ int btree_add(btree_t *tree, void *key, datablock_t *block)
         return 0;
 
     btree_node_t *curr = tree->root;
-    size_t u = curr->u;
+    size_t u = tree->u;
     size_t t = 2*u - 1;
 
     if (curr->nkeys == t)
@@ -184,6 +186,7 @@ int btree_add(btree_t *tree, void *key, datablock_t *block)
     while (idx > 0 && curr->keys[idx - 1] < key)
     {
         curr->keys[idx] = curr->keys[idx - 1];
+        curr->dptr[idx] = curr->dptr[idx - 1];
         --idx;
     }
 

@@ -63,6 +63,7 @@ void print_block(const datablock_t *block)
     {
         printf("%-15s\t", block->cols[i].name);
         print_value(block->cols[i].type, block->cols[i].value);
+        puts("");
     }
 }
 

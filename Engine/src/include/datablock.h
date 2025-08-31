@@ -2,7 +2,10 @@
 #ifndef GDB_DATABLOCK_
 #define GDB_DATABLOCK_
 
+#include <stddef.h>
+
 #include "column.h"
+
 
 typedef struct dataframe dataframe_t;
 

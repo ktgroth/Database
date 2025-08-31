@@ -76,12 +76,13 @@ int frame_add(dataframe_t *frame, datablock_t *values)
         return 0;
     }
 
+    frame->rows = new_rows;
     frame->rows[frame->nrows] = values;
     ++frame->nrows;
     return 1;
 }
 
-const dataframe_t *frame_find(const dataframe_t *frame, const char *keycol, const void *keyval)
+const dataframe_t *frame_search(const dataframe_t *frame, const char *keycol, const void *keyval)
 {
     if (!frame || !keycol || !keyval)
         return NULL;

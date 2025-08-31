@@ -1,0 +1,588 @@
+Thinking...
+We need to develop an SQL parser in Go with lexer, parser, AST, integrated into this project structure. Provide code files. The build.sh builds libsqlparser.so with c-shared. main.go already uses SQLParser/sqlparser package. We need to create SQLParser package with lexer, parser, AST. The code should compile. Need to be concise, but provide all files in tree list with contents labelled. Use Go language only.
+
+We should provide a simple subset: SELECT <columns> FROM <table> WHERE <condition>. Only handle simple conditions with a single comparison. Provide lexer tokens: SELECT, FROM, WHERE, IDENT, COMMA, STAR, EQ, etc. Parser produce AST: SelectStmt struct. Provide Parser struct with methods NewParser(query string) *Parser and ParseSelect() *SelectStmt. The SelectStmt struct should match used fields: Columns []string, Table string, Where *Condition. Condition struct fields Left, Op, Right string.
+
+Also ensure SQLParser/sqlparser package is defined.
+
+Also, maybe provide a test file? Not necessary.
+
+Provide the tree:
+
+- SQLParser/
+  - build.sh (existing)
+  - main.go (existing)
+  - sqlparser/
+    - lexer.go
+    - parser.go
+    - ast.go
+    - sqlparser.go (public API)
+  - go.mod (module path SQLParser)
+
+But we need module path to match import "SQLParser/sqlparser" in main.go. So go.mod module SQLParser. Let's provide minimal.
+
+Provide each file content.
+
+Implementation details:
+
+lexer.go: token types, Lexer struct with input string, pos, readChar, nextToken.
+
+parser.go: Parser struct holds lexer, curToken, peekToken, errors. Methods advance, expectPeek. ParseSelect implements parsing SELECT <columns> FROM <table> [WHERE <condition>]. parseColumns returns []string. parseCondition returns *Condition.
+
+ast.go: Define types SelectStmt, Condition.
+
+sqlparser.go: Public API: type Parser struct? Already defined. Provide function NewParser(input string) *Parser. Maybe wrap.
+
+Also we need to export ParseSelect method on Parser.
+
+We must be careful: main.go calls NewParser(C.GoString(query)).ParseSelect(). So NewParser returns *sqlparser.Parser; ParseSelect returns *SelectStmt.
+
+Define package sqlparser.
+
+Also we need to add "github.com/pkg/errors" maybe? but we can avoid.
+
+Implement simple.
+
+Edge cases: support wildcard '*', multiple columns separated by commas.
+
+Return Condition only if WHERE clause exists.
+
+Implement simple where: <ident> <op> <value>. Value can be string literal or number? For simplicity treat as IDENT too, or maybe string literal starting and ending with quotes. We'll support quoted string.
+
+Token types: ILLEGAL, EOF, IDENT, INT, STRING, COMMA, STAR, EQ, NEQ, LT, GT, LTE, GTE, SELECT, FROM, WHERE, AS? maybe not needed.
+
+Token literal for string.
+
+Implement Lexer readChar, peekChar.
+
+We only need to parse simple queries.
+
+Now produce final answer with tree and contents.
+
+Let's do that.
+...done thinking.
+
+Below is a minimal, self‑contained SQL parser written in Go that can be compiled into a shared library (`libsqlparser.so`) and used from C.  
+The project structure, source files, and a brief explanation of each component are shown.
+
+```
+SQLParser/
+├── build.sh
+├── main.go
+├── sqlparser/
+│   ├── ast.go
+│   ├── lexer.go
+│   ├── parser.go
+│   └── sqlparser.go
+└── go.mod
+```
+
+---
+
+### `build.sh`
+
+```bash
+#!/bin/bash
+
+GO="go build"
+
+GOFLAGS="-buildmode=c-shared"
+
+SRC=sqlparser
+BUILD=build
+
+OUTPUT=$BUILD/libsqlparser.so
+
+function build {
+    mkdir -p $BUILD
+    comp
+}
+
+function comp {
+    $GO $GOFLAGS -o $OUTPUT
+}
+
+function clean {
+    clear
+    rm -rf $BUILD
+}
+
+for arg in "$@"; do
+    if [ "$arg" = "build" ]; then
+        build
+    elif [ "$arg" = "clean" ]; then
+        clean
+    fi
+done
+```
+
+---
+
+### `main.go`
+
+```go
+package main
+
+/*
+#include <stdlib.h>
+
+typedef struct {
+	char *left;
+	char *op;
+	char *right;
+} Condition;
+
+typedef struct {
+	char **columns;
+	int ncolumns;
+	char *table;
+	Condition *where;
+} SelectStmt;
+*/
+import "C"
+import "fmt"
+import "unsafe"
+import "SQLParser/sqlparser"
+
+func cString(s string) *C.char {
+	return C.CString(s)
+}
+
+//export SQLParser
+func SQLParser(query *C.char) *C.SelectStmt {
+	stmt := sqlparser.NewParser(C.GoString(query)).ParseSelect()
+	fmt.Printf("Columns: %+v\nTable: %+v\nWhere%+v\n",
+			stmt.Columns, stmt.Table, stmt.Where)
+
+	cstmt := (*C.SelectStmt)(C.malloc(C.size_t(unsafe.Sizeof(C.SelectStmt {}))))
+
+	cstmt.table = cString(stmt.Table)
+
+	n := len(stmt.Columns)
+	cstmt.ncolumns = C.int(n)
+	cstmt.columns = (**C.char)(C.malloc(C.size_t(n) * C.size_t(unsafe.Sizeof(uintptr(0)))))
+	colPtr := (*[1 << 30]*C.char)(unsafe.Pointer(cstmt.columns))
+	for i, col := range stmt.Columns {
+		colPtr[i] = cString(col)
+	}
+
+	if stmt.Where != nil {
+		cstmt.where = (*C.Condition)(C.malloc(C.size_t(unsafe.Sizeof(C.Condition {}))))
+		cstmt.where.left = cString(stmt.Where.Left)
+		cstmt.where.op = cString(stmt.Where.Op)
+		cstmt.where.right = cString(stmt.Where.Right)
+	} else {
+		cstmt.where = nil
+	}
+
+	return cstmt
+}
+
+func main() {}
+```
+
+---
+
+### `go.mod`
+
+```go
+module SQLParser
+
+go 1.22
+```
+
+---
+
+### `sqlparser/ast.go`
+
+```go
+package sqlparser
+
+// SelectStmt represents the parsed SELECT statement.
+type SelectStmt struct {
+	Columns []string
+	Table   string
+	Where   *Condition
+}
+
+// Condition represents a simple WHERE condition.
+type Condition struct {
+	Left  string
+	Op    string
+	Right string
+}
+```
+
+---
+
+### `sqlparser/lexer.go`
+
+```go
+package sqlparser
+
+import (
+	"strings"
+	"unicode"
+)
+
+// TokenType is a string alias for readability.
+type TokenType string
+
+// Token represents a lexical token.
+type Token struct {
+	Type    TokenType
+	Literal string
+}
+
+// Token constants.
+const (
+	// Special tokens
+	ILLEGAL TokenType = "ILLEGAL"
+	EOF               = "EOF"
+
+	// Literals
+	IDENT  = "IDENT"
+	INT    = "INT"
+	STRING = "STRING"
+
+	// Operators
+	ASTERISK = "*"
+	COMMA    = ","
+	ASSIGN   = "="
+	NEQ      = "!="
+	LT       = "<"
+	GT       = ">"
+	LTE      = "<="
+	GTE      = ">="
+
+	// Keywords
+	SELECT = "SELECT"
+	FROM   = "FROM"
+	WHERE  = "WHERE"
+)
+
+// keyword map for fast lookup.
+var keywords = map[string]TokenType{
+	"SELECT": SELECT,
+	"FROM":   FROM,
+	"WHERE":  WHERE,
+}
+
+// Lexer holds the state of the scanner.
+type Lexer struct {
+	input        string
+	position     int  // current position in input (points to current char)
+	readPosition int  // current reading position (after current char)
+	ch           byte // current char under examination
+}
+
+// NewLexer creates a new Lexer for the given input string.
+func NewLexer(input string) *Lexer {
+	l := &Lexer{input: input}
+	l.readChar()
+	return l
+}
+
+// readChar advances the lexer by one character.
+func (l *Lexer) readChar() {
+	if l.readPosition >= len(l.input) {
+		l.ch = 0 // ASCII NUL marks EOF
+	} else {
+		l.ch = l.input[l.readPosition]
+	}
+	l.position = l.readPosition
+	l.readPosition++
+}
+
+// NextToken lexes the next token from input.
+func (l *Lexer) NextToken() Token {
+	var tok Token
+
+	l.skipWhitespace()
+
+	switch l.ch {
+	case 0:
+		tok = Token{Type: EOF, Literal: ""}
+	case '*':
+		tok = Token{Type: ASTERISK, Literal: string(l.ch)}
+	case ',':
+		tok = Token{Type: COMMA, Literal: string(l.ch)}
+	case '=':
+		tok = Token{Type: ASSIGN, Literal: string(l.ch)}
+	case '!':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = Token{Type: NEQ, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = Token{Type: ILLEGAL, Literal: string(l.ch)}
+		}
+	case '<':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = Token{Type: LTE, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = Token{Type: LT, Literal: string(l.ch)}
+		}
+	case '>':
+		if l.peekChar() == '=' {
+			ch := l.ch
+			l.readChar()
+			tok = Token{Type: GTE, Literal: string(ch) + string(l.ch)}
+		} else {
+			tok = Token{Type: GT, Literal: string(l.ch)}
+		}
+	case '\'':
+		tok = Token{Type: STRING, Literal: l.readString()}
+	default:
+		if isLetter(l.ch) {
+			literal := l.readIdentifier()
+			typ := lookupIdent(literal)
+			tok = Token{Type: typ, Literal: literal}
+			return tok
+		} else if isDigit(l.ch) {
+			tok = Token{Type: INT, Literal: l.readNumber()}
+			return tok
+		} else {
+			tok = Token{Type: ILLEGAL, Literal: string(l.ch)}
+		}
+	}
+	l.readChar()
+	return tok
+}
+
+// Helper methods.
+
+func (l *Lexer) peekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	}
+	return l.input[l.readPosition]
+}
+
+func (l *Lexer) skipWhitespace() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
+}
+
+func isLetter(ch byte) bool {
+	return unicode.IsLetter(rune(ch)) || ch == '_'
+}
+
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
+}
+
+func (l *Lexer) readIdentifier() string {
+	pos := l.position
+	for isLetter(l.ch) || isDigit(l.ch) {
+		l.readChar()
+	}
+	return l.input[pos:l.position]
+}
+
+func (l *Lexer) readNumber() string {
+	pos := l.position
+	for isDigit(l.ch) {
+		l.readChar()
+	}
+	return l.input[pos:l.position]
+}
+
+func (l *Lexer) readString() string {
+	// skip opening quote
+	l.readChar()
+	start := l.position
+	for l.ch != '\'' && l.ch != 0 {
+		l.readChar()
+	}
+	str := l.input[start:l.position]
+	// skip closing quote
+	if l.ch == '\'' {
+		l.readChar()
+	}
+	return str
+}
+
+func lookupIdent(ident string) TokenType {
+	if tok, ok := keywords[strings.ToUpper(ident)]; ok {
+		return tok
+	}
+	return IDENT
+}
+```
+
+---
+
+### `sqlparser/parser.go`
+
+```go
+package sqlparser
+
+// Parser consumes tokens from the lexer and builds an AST.
+type Parser struct {
+	lex        *Lexer
+	curToken   Token
+	peekToken  Token
+	errors     []string
+}
+
+// NewParser creates a new Parser for the supplied SQL string.
+func NewParser(input string) *Parser {
+	l := NewLexer(input)
+	p := &Parser{lex: l}
+	// Read two tokens, so curToken and peekToken are set.
+	p.nextToken()
+	p.nextToken()
+	return p
+}
+
+// nextToken advances the token stream.
+func (p *Parser) nextToken() {
+	p.curToken = p.peekToken
+	p.peekToken = p.lex.NextToken()
+}
+
+// ParseSelect parses a SELECT statement and returns a SelectStmt.
+func (p *Parser) ParseSelect() *SelectStmt {
+	stmt := &SelectStmt{}
+
+	// Expect SELECT
+	if !p.expectPeek(SELECT) {
+		return stmt
+	}
+	p.nextToken()
+
+	// Parse columns
+	stmt.Columns = p.parseColumns()
+
+	// Expect FROM
+	if !p.expectPeek(FROM) {
+		return stmt
+	}
+	p.nextToken()
+
+	// Table name
+	if p.curToken.Type != IDENT {
+		p.errors = append(p.errors, "expected table name")
+		return stmt
+	}
+	stmt.Table = p.curToken.Literal
+
+	// Optional WHERE
+	if p.peekToken.Type == WHERE {
+		p.nextToken() // move to WHERE
+		p.nextToken() // first token of condition
+		stmt.Where = p.parseCondition()
+	}
+
+	return stmt
+}
+
+// parseColumns parses the column list (comma separated or *).
+func (p *Parser) parseColumns() []string {
+	cols := []string{}
+	if p.curToken.Type == ASTERISK {
+		cols = append(cols, "*")
+		return cols
+	}
+	cols = append(cols, p.curToken.Literal)
+	for p.peekToken.Type == COMMA {
+		p.nextToken() // comma
+		p.nextToken() // next column
+		cols = append(cols, p.curToken.Literal)
+	}
+	return cols
+}
+
+// parseCondition parses a simple condition: IDENT OP IDENT|STRING|INT
+func (p *Parser) parseCondition() *Condition {
+	c := &Condition{}
+	// Left side
+	if p.curToken.Type != IDENT {
+		p.errors = append(p.errors, "expected identifier in condition")
+		return nil
+	}
+	c.Left = p.curToken.Literal
+
+	// Operator
+	if p.peekToken.Type != ASSIGN && p.peekToken.Type != NEQ &&
+		p.peekToken.Type != LT && p.peekToken.Type != GT &&
+		p.peekToken.Type != LTE && p.peekToken.Type != GTE {
+		p.errors = append(p.errors, "expected comparison operator")
+		return nil
+	}
+	p.nextToken() // move to operator
+	c.Op = p.curToken.Literal
+
+	// Right side
+	p.nextToken()
+	if p.curToken.Type != IDENT && p.curToken.Type != STRING && p.curToken.Type != INT {
+		p.errors = append(p.errors, "expected value in condition")
+		return nil
+	}
+	c.Right = p.curToken.Literal
+
+	return c
+}
+
+// expectPeek checks that the next token is of the expected type.
+func (p *Parser) expectPeek(t TokenType) bool {
+	if p.peekToken.Type == t {
+		return true
+	}
+	p.errors = append(p.errors, "expected token "+string(t)+", got "+string(p.peekToken.Type))
+	return false
+}
+```
+
+---
+
+### `sqlparser/sqlparser.go`
+
+```go
+package sqlparser
+
+// NewParser is a thin wrapper exposed to main.go.
+func NewParser(input string) *Parser {
+	return NewParser(input)
+}
+```
+
+---
+
+## How to use
+
+1. **Build the shared library**
+
+   ```bash
+   $ cd SQLParser
+   $ ./build.sh build
+   ```
+
+   This creates `build/libsqlparser.so`.
+
+2. **Link from C**
+
+   ```c
+   #include <sqlparser.h>  // the C struct definitions from main.go
+   extern SelectStmt* SQLParser(const char* query);
+
+   int main() {
+       const char* q = "SELECT id, name FROM users WHERE age >= 18";
+       SelectStmt* s = SQLParser(q);
+       // use s->Columns, s->Table, s->Where, etc.
+   }
+   ```
+
+3. **Run**
+
+   ```bash
+   $ gcc -o demo demo.c -Lbuild -lsqlparser -Wl,-rpath=build
+   $ ./demo
+   ```
+
+This minimal parser supports `SELECT … FROM … [WHERE …]` with column lists (comma‑separated or `*`) and a single, simple comparison condition. It is intentionally small—just enough for demonstration and easy to extend.
+
