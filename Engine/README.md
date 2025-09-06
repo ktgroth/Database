@@ -17,8 +17,6 @@ The library is intentionally small, written in pure ANSI‑C (C99), and is meant
 - [API overview](#api-overview)  
 - [Examples](#examples)  
 - [Future work](#future-work)  
-- [Contributing](#contributing)  
-- [License](#license)  
 
 ---
 
