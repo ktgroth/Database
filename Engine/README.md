@@ -53,8 +53,7 @@ The code is heavily commented, and each module contains the main API functions. 
  │    ├─ table.h
  │    ├─ utils.h
  │    └─ logger.h
- ├─ README.md            # this file
- └─ LICENSE              # (add your license file)
+ └─ README.md            # this file
 ```
 
 *All source files are in the `src/` directory and public headers in `include/`.*
