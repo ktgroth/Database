@@ -177,15 +177,4 @@ print_frame(groths);
 
 ---
 
-## Contributing  
-
-1. Fork the repo and create a feature branch.  
-2. Compile with `make clean && make` to confirm all existing tests pass.  
-3. Add your changes / tests.  
-4. Submit a pull request – describe the feature / bug fix in the PR description.  
-
-All code should follow the existing style (no `-Werror` warnings).  Use `gcc -Wall -Wextra -pedantic` for linting.  
-
----
-
 Happy coding!
