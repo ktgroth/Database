@@ -188,12 +188,4 @@ All code should follow the existing style (no `-Werror` warnings).  Use `gcc -Wa
 
 ---
 
-## License  
-
-This project is licensed under the **MIT License** – see the `LICENSE` file for details.  
-
-Feel free to use, modify, and distribute the code for personal or educational projects.  
-
---- 
-
 Happy coding!
