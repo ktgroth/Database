@@ -75,7 +75,7 @@ No external libraries are required.
 
 ```bash
 # Clone the repo
-git clone https://github.com/<your-username>/dataframe.git
+git clone https://github.com/ktgroth/dataframe.git
 cd dataframe
 
 # Build the demo binary
