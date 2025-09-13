@@ -28,7 +28,7 @@ typedef struct
 
 btree_node_t *init_btree_node(int is_leaf, size_t u);
 void free_btree_node(btree_node_t *node);
-void print_btree_node(const btree_node_t *node, type_e type, size_t level);
+void print_btree_node(const btree_node_t *node, type_e type);
 
 
 btree_t *init_btree(size_t u, const char *colname, const type_e coltype);
@@ -36,7 +36,7 @@ void free_btree(btree_t *tree);
 void print_btree(const btree_t *tree);
 
 
-int btree_add(btree_t *tree, void *key, datablock_t *block);
+int btree_add(btree_t *tree, const void *key, datablock_t *block);
 int btree_remove(btree_t *tree, const void *key);
 int btree_update(btree_t *tree, const void *key, const datablock_t *block);
 const datablock_t *btree_search(const btree_t *tree, const void *key);

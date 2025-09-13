@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
     UNUSED(argv);
 
     const char *colnames[] = { "fname", "lname", "age", "salary" };
-    const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT, COL_FLOAT };
+    const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT32, COL_FLOAT64 };
     dataframe_t *frame = init_frame(4, colnames, coltypes);
 
     void *block1[] = { "Kasen", "Groth", (int []){ 22 }, (double []){ 65000 } };
@@ -25,18 +25,19 @@ int main(int argc, char *argv[])
     void *block6[] = { "Katie", "Smith", (int []){ 28 }, (double []){ 48000 } };
     void *block7[] = { "Noah", "Smith", (int []){ 27 }, (double []){ 88000 } };
 
-    datablock_t *row1 = init_block(frame, block1);
-    datablock_t *row2 = init_block(frame, block2);
-    datablock_t *row3 = init_block(frame, block3);
-    datablock_t *row4 = init_block(frame, block4);
-    datablock_t *row5 = init_block(frame, block5);
-    datablock_t *row6 = init_block(frame, block6);
-    datablock_t *row7 = init_block(frame, block7);
+    datablock_t *row1 = construct_block(frame, (const void **)block1);
+    datablock_t *row2 = construct_block(frame, (const void **)block2);
+    datablock_t *row3 = construct_block(frame, (const void **)block3);
+    datablock_t *row4 = construct_block(frame, (const void **)block4);
+    datablock_t *row5 = construct_block(frame, (const void **)block5);
+    datablock_t *row6 = construct_block(frame, (const void **)block6);
+    datablock_t *row7 = construct_block(frame, (const void **)block7);
 
     frame_add(frame, row1);
     frame_add(frame, row2);
     frame_add(frame, row3);
     puts("=== Frame Add ===");
+    printf("SIZE: %ld\tCAPACITY: %ld\n", frame->nrows, frame->capacity);
     print_frame(frame);
     puts("\n");
 
@@ -52,6 +53,7 @@ int main(int argc, char *argv[])
     frame_add(frame, row6);
     frame_add(frame, row7);
     puts("=== Frame Add ===");
+    printf("SIZE: %ld\tCAPACITY: %ld\n", frame->nrows, frame->capacity);
     print_frame(frame);
     puts("\n");
 
@@ -62,12 +64,12 @@ int main(int argc, char *argv[])
     puts("\n");
 
 
-    dataframe_t *groths = frame_search(frame, "lname", "Groth");
+    dataframe_t *groths = frame_lookup(frame, "lname", "Groth");
     puts("=== Frame Search ===");
     print_frame(groths);
     puts("\n");
 
-    btree_t *tree = init_btree(2, "id", COL_INT);
+    btree_t *tree = init_btree(2, "id", COL_INT32);
     btree_add(tree, (void *)(int []){ 1 }, row1);
     btree_add(tree, (void *)(int []){ 2 }, row2);
     btree_add(tree, (void *)(int []){ 3 }, row3);

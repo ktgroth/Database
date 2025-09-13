@@ -42,7 +42,8 @@ void free_btree_node(btree_node_t *node)
     free(node);
 }
 
-void print_btree_node(const btree_node_t *node, type_e type, size_t level)
+
+void print_btree_node(const btree_node_t *node, type_e type)
 {
     if (!node)
         return;
@@ -50,18 +51,17 @@ void print_btree_node(const btree_node_t *node, type_e type, size_t level)
     for (size_t i = 0; i < node->nkeys; ++i)
     {
         if (!node->is_leaf)
-            print_btree_node(node->children[i], type, level + 1);
-
-        for (size_t j = 0; j < level; ++j)
-            printf("\t");
+            print_btree_node(node->children[i], type);
 
         print_value(type, node->keys[i]);
+        datablock_t *data = node->dptr[i];
+        for (size_t j = 0; j < data->ncols; ++j)
+            print_value(data->cols[j]->field->type, data->cols[j]->field->value);
         puts("");
-        print_block(node->dptr[i]);
     }
 
     if (!node->is_leaf)
-        print_btree_node(node->children[node->nkeys], type, level + 1);
+        print_btree_node(node->children[node->nkeys], type);
 }
 
 
@@ -101,7 +101,16 @@ void print_btree(const btree_t *tree)
     if (!tree)
         return;
 
-    print_btree_node(tree->root, tree->coltype, 0);
+    datablock_t *block = tree->root->dptr[0];
+    if (!block)
+        return;
+
+    printf(" %-15s ", tree->colname);
+    for (size_t i = 0; i < block->ncols; ++i)
+        printf(" %-15s ", block->cols[i]->name);
+    puts("");
+
+    print_btree_node(tree->root, tree->coltype);
 }
 
 
@@ -147,7 +156,7 @@ void btree_split_child(btree_node_t *parent, size_t i)
     ++parent->nkeys;
 }
 
-int btree_add(btree_t *tree, void *key, datablock_t *block)
+int btree_add(btree_t *tree, const void *key, datablock_t *block)
 {
     if (!tree)
         return 0;
@@ -159,9 +168,9 @@ int btree_add(btree_t *tree, void *key, datablock_t *block)
     if (curr->nkeys == t)
     {
         btree_node_t *new_root = init_btree_node(0, u);
-        tree->root = new_root;
-
         new_root->children[0] = curr;
+
+        tree->root = new_root;
         btree_split_child(new_root, 0);
         curr = new_root;
     }
@@ -175,7 +184,7 @@ int btree_add(btree_t *tree, void *key, datablock_t *block)
         if (curr->children[idx]->nkeys == t)
         {
             btree_split_child(curr, idx);
-            if (key > curr->keys[idx])
+            if (GT(tree->coltype, key, curr->keys[idx]))
                 ++idx;
         }
 
@@ -183,7 +192,7 @@ int btree_add(btree_t *tree, void *key, datablock_t *block)
     }
 
     size_t idx = curr->nkeys;
-    while (idx > 0 && LT(tree->coltype, curr->keys[idx - 1], key))
+    while (idx > 0 && GT(tree->coltype, curr->keys[idx - 1], key))
     {
         curr->keys[idx] = curr->keys[idx - 1];
         curr->dptr[idx] = curr->dptr[idx - 1];
@@ -374,6 +383,22 @@ int btree_update(btree_t *tree, const void *key, const datablock_t *block)
 {
     if (!tree)
         return 0;
+
+    btree_node_t *curr = tree->root;
+    while (curr)
+    {
+        size_t idx = 0;
+        while (idx < curr->nkeys && LT(tree->coltype, curr->keys[idx], key))
+            ++idx;
+
+        if (idx < curr->nkeys && EQ(tree->coltype, curr->keys[idx], key))
+        {
+            curr->dptr[idx] = block;
+            return 1;
+        }
+
+        curr = curr->children[idx];
+    }
 
     return 1;
 }

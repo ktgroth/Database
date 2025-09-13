@@ -1,6 +1,6 @@
 
-#ifndef GDB_TABLE_
-#define GDB_TABLE_
+#ifndef GDB_TYPES_
+#define GDB_TYPES_
 
 #include "dataframe.h"
 #include "btree.h"
@@ -8,24 +8,32 @@
 
 typedef struct
 {
-    size_t          ncols;
-    size_t          nindexes;
-    char            **colnames;
-    type_e          *coltypes;
-    dataframe_t     *frame;
-    int             indexed;
-    btree_t         **indexes;
-} table_t;
+    const char       *name;
 
-table_t *init_table(size_t ncols, const char **colnames, const type_e *coltypes, int indexed);
-void free_table(table_t *tbl);
-void print_table(const table_t *tbl);
+    size_t            nidxs;
+    btree_t         **idxs;
+
+    size_t            ncols;
+    const char      **colnames;
+    const type_e     *coltypes;
+
+    size_t            nrows;
+    int               indexed;
+    const char       *pkname;
+    const type_e      pktype;
+    storage_t        *rows;
+};
 
 
-int table_add(table_t *tbl, datablock_t *block);
-const dataframe_t *table_search(const table_t *tbl, size_t ncols, const char **cols, const void **values);
-int table_update(table_t *tbl, const char *keycol, const void *keyval, const char *col, void *value);
-int table_delete(table_t *tbl, const char *keycol, const void *keyval);
+table_t             *init_table(size_t ncols, const char **colnames, const type_e *coltypes, storage_type_e stype,
+                                int indexed, const char *pkname, const type_e pktype);
+void                 free_table(table_t *tbl);
+
+
+int                  table_insert(table_t *tbl, datablock_t *row);
+int                  table_remove(table_t *tbl, const char *colname, const void *coltype);
+const dataframe_t   *table_lookup(const table_t *tbl, const char *colname, const void *value);
+int                  table_update(table_t *tbl, const char *keyname, const void *keyval, const char *colname, const void *value);
 
 #endif
 

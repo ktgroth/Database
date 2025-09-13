@@ -1,17 +1,18 @@
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include <stdint.h>
+#include <string.h>
 
 #include "include/dataframe.h"
 
 
+datablock_t *construct_block(const dataframe_t *frame, const void **values)
+{
+    return init_block(frame->ncols, frame->colnames, frame->coltypes, values);
+}
+
 dataframe_t *init_frame(size_t ncols, const char **colnames, const type_e *coltypes)
 {
-    if (!colnames || !coltypes)
-        return NULL;
-
     dataframe_t *frame = (dataframe_t *)calloc(1, sizeof(dataframe_t));
     if (!frame)
     {
@@ -20,9 +21,10 @@ dataframe_t *init_frame(size_t ncols, const char **colnames, const type_e *colty
     }
 
     frame->ncols = ncols;
-    frame->nrows = 0;
     frame->colnames = colnames;
     frame->coltypes = coltypes;
+    frame->nrows = 0;
+    frame->capacity = 0;
     frame->rows = NULL;
 
     return frame;
@@ -33,13 +35,9 @@ void free_frame(dataframe_t *frame)
     if (!frame)
         return;
 
-    if (frame->rows)
-    {
-        for (size_t i = 0; i < frame->nrows; ++i)
-            free_block(frame->rows[i]);
-
-        free(frame->rows);
-    }
+    for (size_t i = 0; i < frame->nrows; ++i)
+        free_block(frame->rows[i]);
+    free(frame->rows);
 
     free(frame);
 }
@@ -50,142 +48,162 @@ void print_frame(const dataframe_t *frame)
         return;
 
     for (size_t i = 0; i < frame->ncols; ++i)
-        printf("  %-15s  ", frame->colnames[i]);
-    printf("\n");
+        printf(" %-15s ", frame->colnames[i]);
+    puts("");
 
     for (size_t i = 0; i < frame->nrows; ++i)
     {
         datablock_t *row = frame->rows[i];
         for (size_t j = 0; j < frame->ncols; ++j)
-            print_value(row->cols[j].type, row->cols[j].value);
+            print_value(row->cols[j]->field->type, row->cols[j]->field->value);
 
-        printf("\n");
+        puts("");
     }
 }
 
-
-int frame_add(dataframe_t *frame, datablock_t *values)
+int frame_insert(dataframe_t *frame, const void **values)
 {
     if (!frame || !values)
-        return 0;
-
-    datablock_t **new_rows = realloc(frame->rows, (frame->nrows + 1) * sizeof(datablock_t *));
-    if (!new_rows)
     {
-        perror("new_rows = realloc(frame->rows, (frame->nrows + 1) * sizeof(datablock_t *))");
+        perror("!frame || !values");
         return 0;
     }
 
-    frame->rows = new_rows;
-    frame->rows[frame->nrows] = values;
-    ++frame->nrows;
+    datablock_t *block = construct_block(frame, values);
+    if (!frame_add(frame, block))
+    {
+        free_block(block);
+        return 0;
+    }
+
     return 1;
 }
 
-const dataframe_t *frame_search(const dataframe_t *frame, const char *keycol, const void *keyval)
+int frame_add(dataframe_t *frame, const datablock_t *block)
 {
-    if (!frame || !keycol || !keyval)
-        return NULL;
+    if (!frame || !block)
+    {
+        perror("!frame || !block");
+        return 0;
+    }
 
-    size_t key = SIZE_MAX;
-    for (size_t i = 0; i < frame->ncols; ++i)
-        if (!strcmp(keycol, frame->colnames[i]))
+    if (frame->nrows == frame->capacity)
+    {
+        datablock_t **new_rows = realloc(frame->rows, ((3 * frame->capacity) + 1) * sizeof(datablock_t *));
+        if (!new_rows)
         {
-            key = i;
-            break;
+            perror("!new_rows");
+            return 0;
         }
 
-    if (key == SIZE_MAX)
-        return NULL;
+        frame->capacity = (3 * frame->capacity) + 1;
+        frame->rows = new_rows;
+    }
 
-    dataframe_t *found = init_frame(frame->ncols, frame->colnames, frame->coltypes);
+    frame->rows[frame->nrows] = block;
+    ++frame->nrows;
+
+    return 1;
+}
+
+int frame_remove(dataframe_t *frame, const char *colname, const void *value)
+{
+    if (!frame || !colname || !value)
+    {
+        perror("!frame || !colname || !value");
+        return 0;
+    }
+
+    size_t idx = -1;
+    for (size_t i = 0; i < frame->ncols; ++i)
+    {
+        if (!strcmp(colname, frame->colnames[i]))
+        {
+            idx = i;
+            break;
+        }
+    }
+
+    if (idx == -1)
+        return 0;
+
     for (size_t i = 0; i < frame->nrows; ++i)
     {
         datablock_t *row = frame->rows[i];
-        if (!cmp_value(frame->coltypes[key], row->cols[key].value, keyval))
-            frame_add(found, row);
+        if (column_cmp(row->cols[idx], value))
+        {
+            for (size_t j = i; j < frame->nrows - 1; ++j)
+                frame->rows[j] = frame->rows[j + 1];
+            --i;
+        }
     }
 
-    return found;
+    return 1;
 }
 
-int frame_update(dataframe_t *frame, const char *keycol, const void *keyval, const char *col, void *new_value)
+const dataframe_t *frame_lookup(const dataframe_t *frame, const char *colname, const void *value)
 {
-    if (!frame || !keycol || !keyval || !col || !new_value)
-        return 0;
+    if (!frame || !colname || !value)
+    {
+        perror("!frame || !colname || !value");
+        return NULL;
+    }
 
-    size_t key = SIZE_MAX;
+    size_t idx = -1;
     for (size_t i = 0; i < frame->ncols; ++i)
-        if (!strcmp(keycol, frame->colnames[i]))
-        {
-            key = i;
-            break;
-        }
-
-    if (key == SIZE_MAX)
-        return 0;
-
-    size_t idx = SIZE_MAX;
-    for (size_t i = 0; i < frame->ncols; ++i)
-        if (!strcmp(col, frame->colnames[i]))
+        if (!strcmp(frame->colnames[i], colname))
         {
             idx = i;
             break;
         }
 
-    if (idx == SIZE_MAX)
-        return 0;
+    if (idx == -1)
+        return NULL;
 
+    dataframe_t *lookup = init_frame(frame->ncols, frame->colnames, frame->coltypes);
     for (size_t i = 0; i < frame->nrows; ++i)
     {
         datablock_t *row = frame->rows[i];
-        if (!cmp_value(frame->coltypes[key], row->cols[key].value, keyval))
-            row->cols[idx].value = new_value;
+        if (!column_cmp_value(row->cols[idx], value))
+            frame_add(lookup, row);
     }
 
-    return 1;
+    return lookup;
 }
 
-int frame_remove(dataframe_t *frame, const char *keycol, const void *keyval)
+int frame_update(dataframe_t *frame, const char *keyname, const void *keyval, const char *colname, const void *value)
 {
-    if (!frame || !keycol || !keyval)
+    if (!frame || !keyname || !keyval || !colname || !value)
         return 0;
 
-    size_t key = SIZE_MAX;
+    size_t kidx = -1, vidx = -1;
     for (size_t i = 0; i < frame->ncols; ++i)
-        if (!strcmp(keycol, frame->colnames[i]))
+        if (!strcmp(frame->colnames[i], keyname))
         {
-            key = i;
+            kidx = i;
             break;
         }
 
-    if (key == SIZE_MAX)
+    for (size_t i = 0; i < frame->ncols; ++i)
+        if (!strcmp(frame->colnames[i], colname))
+        {
+            vidx = i;
+            break;
+        }
+
+    if (kidx == -1 || vidx == -1)
         return 0;
 
-    size_t deleted = 0;
+    dataframe_t *lookup = init_frame(frame->ncols, frame->colnames, frame->coltypes);
     for (size_t i = 0; i < frame->nrows; ++i)
     {
         datablock_t *row = frame->rows[i];
-        if (!cmp_value(frame->coltypes[key], row->cols[key].value, keyval))
+        if (!column_cmp_value(row->cols[kidx], keyval))
         {
-            for (size_t f = i; f < frame->nrows - 1; ++f)
-                frame->rows[f] = frame->rows[f + 1];
-            ++deleted;
-
-            free_block(row);
+            column_update(row->cols[vidx], value);
         }
-
     }
 
-    datablock_t **new_rows = realloc(frame->rows, (frame->nrows - deleted) * sizeof(datablock_t *));
-    if (!new_rows)
-    {
-        perror("new_rows = realloc(frame->rows, (frame->nrows - deleted) * sizeof(datablock_t *))");
-        return 0;
-    }
-
-    frame->rows = new_rows;
-    frame->nrows -= deleted;
 
     return 1;
 }
