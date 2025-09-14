@@ -4,6 +4,10 @@
 
 #include "include/btree.h"
 
+static datablock_t *construct_block(const btree_t *tree, void **values)
+{
+    return init_block(tree->ncols, tree->colnames, tree->coltypes, values);
+}
 
 btree_node_t *init_btree_node(int is_leaf, size_t u)
 {
@@ -65,7 +69,7 @@ void print_btree_node(const btree_node_t *node, type_e type)
 }
 
 
-btree_t *init_btree(size_t u, const char *colname, const type_e coltype)
+btree_t *init_btree(size_t u, size_t ncols, const char **colnames, const type_e *coltypes, const char *pkname, const type_e pktype)
 {
     btree_t *tree = (btree_t *)calloc(1, sizeof(btree_t));
     if (!tree)
@@ -75,8 +79,12 @@ btree_t *init_btree(size_t u, const char *colname, const type_e coltype)
     }
 
     tree->u = u;
-    tree->colname = colname;
-    tree->coltype = coltype;
+    tree->ncols = ncols;
+    tree->colnames = colnames;
+    tree->coltypes = coltypes;
+    tree->pkname = pkname;
+    tree->pktype = pktype;
+
     tree->root = init_btree_node(1, u);
     if (!tree->root)
     {
@@ -105,14 +113,20 @@ void print_btree(const btree_t *tree)
     if (!block)
         return;
 
-    printf(" %-15s ", tree->colname);
+    printf(" %-15s ", tree->pkname);
     for (size_t i = 0; i < block->ncols; ++i)
         printf(" %-15s ", block->cols[i]->name);
     puts("");
 
-    print_btree_node(tree->root, tree->coltype);
+    print_btree_node(tree->root, tree->pktype);
 }
 
+
+int btree_insert(btree_t *tree, const void *key, void **values)
+{
+    datablock_t *block = construct_block(tree, values);
+    return btree_add(tree, key, block);
+}
 
 void btree_split_child(btree_node_t *parent, size_t i)
 {
@@ -178,13 +192,13 @@ int btree_add(btree_t *tree, const void *key, datablock_t *block)
     while (!curr->is_leaf)
     {
         size_t idx = curr->nkeys;
-        while (idx > 0 && GT(tree->coltype, curr->keys[idx - 1], key))
+        while (idx > 0 && GT(tree->pktype, curr->keys[idx - 1], key))
             --idx;
 
         if (curr->children[idx]->nkeys == t)
         {
             btree_split_child(curr, idx);
-            if (GT(tree->coltype, key, curr->keys[idx]))
+            if (GT(tree->pktype, key, curr->keys[idx]))
                 ++idx;
         }
 
@@ -192,7 +206,7 @@ int btree_add(btree_t *tree, const void *key, datablock_t *block)
     }
 
     size_t idx = curr->nkeys;
-    while (idx > 0 && GT(tree->coltype, curr->keys[idx - 1], key))
+    while (idx > 0 && GT(tree->pktype, curr->keys[idx - 1], key))
     {
         curr->keys[idx] = curr->keys[idx - 1];
         curr->dptr[idx] = curr->dptr[idx - 1];
@@ -313,7 +327,7 @@ void btree_fill(btree_node_t *node, size_t idx)
         btree_merge(node, idx - 1);
 }
 
-int btree_remove(btree_t *tree, const void *key)
+int btree_remove(btree_t *tree, void *key)
 {
     if (!tree)
         return 0;
@@ -324,10 +338,10 @@ int btree_remove(btree_t *tree, const void *key)
     while (curr)
     {
         size_t idx = 0;
-        while (idx < curr->nkeys && LT(tree->coltype, curr->keys[idx], key))
+        while (idx < curr->nkeys && LT(tree->pktype, curr->keys[idx], key))
             ++idx;
 
-        if (idx < curr->nkeys && EQ(tree->coltype, curr->keys[idx], key))
+        if (idx < curr->nkeys && EQ(tree->pktype, curr->keys[idx], key))
         {
             if (curr->is_leaf)
             {
@@ -379,31 +393,7 @@ int btree_remove(btree_t *tree, const void *key)
     return 1;
 }
 
-int btree_update(btree_t *tree, const void *key, const datablock_t *block)
-{
-    if (!tree)
-        return 0;
-
-    btree_node_t *curr = tree->root;
-    while (curr)
-    {
-        size_t idx = 0;
-        while (idx < curr->nkeys && LT(tree->coltype, curr->keys[idx], key))
-            ++idx;
-
-        if (idx < curr->nkeys && EQ(tree->coltype, curr->keys[idx], key))
-        {
-            curr->dptr[idx] = block;
-            return 1;
-        }
-
-        curr = curr->children[idx];
-    }
-
-    return 1;
-}
-
-const datablock_t *btree_search(const btree_t *tree, const void *key)
+const dataframe_t *btree_search(const btree_t *tree, void *key)
 {
     if (!tree)
         return NULL;
@@ -412,15 +402,41 @@ const datablock_t *btree_search(const btree_t *tree, const void *key)
     while (curr)
     {
         size_t idx = 0;
-        while (idx < curr->nkeys && LT(tree->coltype, curr->keys[idx], key))
+        while (idx < curr->nkeys && LT(tree->pktype, curr->keys[idx], key))
             ++idx;
 
-        if (idx < curr->nkeys && EQ(tree->coltype, curr->keys[idx], key))
-            return curr->dptr[idx];
+        if (idx < curr->nkeys && EQ(tree->pktype, curr->keys[idx], key))
+        {
+            dataframe_t *lookup = init_frame(tree->ncols, tree->colnames, tree->coltypes);
+            frame_add(lookup, curr->dptr[idx]);
+            return lookup;
+        }
 
         curr = curr->children[idx];
     }
 
     return NULL;
+}
+
+int btree_update(btree_t *tree, const void *key, const char *colname, void *value)
+{
+    if (!tree)
+        return 0;
+
+    btree_node_t *curr = tree->root;
+    while (curr)
+    {
+        size_t idx = 0;
+        while (idx < curr->nkeys && LT(tree->pktype, curr->keys[idx], key))
+            ++idx;
+
+        printf("%ld\n", idx);
+        if (idx < curr->nkeys && EQ(tree->pktype, curr->keys[idx], key))
+            return block_update(curr->dptr[idx], colname, value);
+
+        curr = curr->children[idx];
+    }
+
+    return 0;
 }
 

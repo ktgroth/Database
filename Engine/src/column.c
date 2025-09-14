@@ -5,7 +5,7 @@
 #include "include/column.h"
 
 
-column_t *init_column(const char *name, const datafield_t *field)
+column_t *init_column(const char *name, datafield_t *field)
 {
     column_t *column = (column_t *)calloc(1, sizeof(column_t));
     if (!column)

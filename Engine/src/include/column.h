@@ -8,11 +8,11 @@
 typedef struct
 {
     const char  *name;
-    datafield_t *field;
+    const datafield_t *field;
 } column_t;
 
 
-column_t    *init_column(const char *name, const datafield_t *field);
+column_t    *init_column(const char *name, datafield_t *field);
 void         free_column(column_t *column);
 
 

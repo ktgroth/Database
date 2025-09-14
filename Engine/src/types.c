@@ -14,6 +14,7 @@ void print_value(type_e type, const void *value)
             printf(" %-15s ", "NULL");
             break;
 
+        case COL_BOOL:
         case COL_INT8:
             printf(" %-15d ", *(int8_t *)value);
             break;
@@ -54,7 +55,7 @@ int value_cmp(type_e type, const void *a, const void *b)
 
         case COL_BOOL:
         case COL_INT8:
-            return *(int8_t *)a > *(int8_t *)b;
+            return *(int8_t *)a - *(int8_t *)b;
 
         case COL_INT16:
             return *(int16_t *)a - *(int16_t *)b;
@@ -182,7 +183,7 @@ int field_update(datafield_t *field, const void *value)
 
 blob_t *construct_blob_path(const char *path)
 {
-    FILE *fp = fopen(path, "+r");
+    FILE *fp = fopen(path, "rb");
     if (!fp)
     {
         perror("fp = fopen(path)");
@@ -192,9 +193,35 @@ blob_t *construct_blob_path(const char *path)
     return construct_blob_file(fp);
 }
 
-blob_t *construct_blob_file(FILE *blob)
+blob_t *construct_blob_file(FILE *fp)
 {
-    
+    if (!fp)
+        return NULL;
+
+    fseek(fp, 0, SEEK_END);
+    long size = ftell(fp);
+    rewind(fp);
+
+    blob_t *blob = (blob_t *)calloc(1, sizeof(blob_t));
+    if (!blob)
+    {
+        perror("blob = calloc(1, sizeof(blob_t))");
+        fclose(fp);
+        return NULL;
+    }
+
+    blob->size = size;
+    blob->data = (char *)malloc(size);
+    if (!blob->data)
+    {
+        free(blob);
+        fclose(fp);
+        return NULL;
+    }
+
+    fread(blob->data, 1, size, fp);
+    fclose(fp);
+    return blob;
 }
 
 void free_blob(blob_t *blob)

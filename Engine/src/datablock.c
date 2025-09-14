@@ -6,7 +6,7 @@
 #include "include/datablock.h"
 
 
-datablock_t *init_block(size_t ncols, const char **colnames, const type_e *coltypes, const void **values)
+datablock_t *init_block(size_t ncols, const char **colnames, const type_e *coltypes, void **values)
 {
     datablock_t *block = (datablock_t *)calloc(1, sizeof(datablock_t));
     if (!block)
@@ -33,7 +33,7 @@ void free_block(datablock_t *block)
     free(block);
 }
 
-int block_update(datablock_t *block, const char *colname, const void *value)
+int block_update(datablock_t *block, const char *colname, void *value)
 {
     if (!block || !colname || !value)
         return 0;

@@ -1,9 +1,8 @@
 
 #include <stdio.h>
 
-#include "include/dataframe.h"
-#include "include/datablock.h"
-#include "include/btree.h"
+#include "include/table.h"
+
 
 #define UNUSED(x) (void)(x);
 
@@ -15,7 +14,9 @@ int main(int argc, char *argv[])
 
     const char *colnames[] = { "fname", "lname", "age", "salary" };
     const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT32, COL_FLOAT64 };
-    dataframe_t *frame = init_frame(4, colnames, coltypes);
+    table_t *tbl = init_table(4, colnames, coltypes, 0, NULL, COL_NULL);
+
+    // dataframe_t *frame = init_frame(4, colnames, coltypes);
 
     void *block1[] = { "Kasen", "Groth", (int []){ 22 }, (double []){ 65000 } };
     void *block2[] = { "Nuno", "Alves", (int []){ 22 }, (double []){ 60000 } };
@@ -24,70 +25,54 @@ int main(int argc, char *argv[])
     void *block5[] = { "Camryn", "Groth", (int []){ 26 }, (double []){ 68000 } };
     void *block6[] = { "Katie", "Smith", (int []){ 28 }, (double []){ 48000 } };
     void *block7[] = { "Noah", "Smith", (int []){ 27 }, (double []){ 88000 } };
+    void *block8[] = { "Kyle", "Hammermueller", (int []){ 23 }, (double []){ 100000 } };
+    void *block9[] = { "Liam", "Boyle", (int []){ 22 }, (double []){ 98000 } };
 
-    datablock_t *row1 = construct_block(frame, (const void **)block1);
-    datablock_t *row2 = construct_block(frame, (const void **)block2);
-    datablock_t *row3 = construct_block(frame, (const void **)block3);
-    datablock_t *row4 = construct_block(frame, (const void **)block4);
-    datablock_t *row5 = construct_block(frame, (const void **)block5);
-    datablock_t *row6 = construct_block(frame, (const void **)block6);
-    datablock_t *row7 = construct_block(frame, (const void **)block7);
+    datablock_t *row1 = init_block(tbl->ncols, colnames, coltypes, block1);
+    datablock_t *row2 = init_block(tbl->ncols, colnames, coltypes, block2);
+    datablock_t *row3 = init_block(tbl->ncols, colnames, coltypes, block3);
+    datablock_t *row4 = init_block(tbl->ncols, colnames, coltypes, block4);
+    datablock_t *row5 = init_block(tbl->ncols, colnames, coltypes, block5);
+    datablock_t *row6 = init_block(tbl->ncols, colnames, coltypes, block6);
+    datablock_t *row7 = init_block(tbl->ncols, colnames, coltypes, block7);
+    datablock_t *row8 = init_block(tbl->ncols, colnames, coltypes, block8);
+    datablock_t *row9 = init_block(tbl->ncols, colnames, coltypes, block9);
 
-    frame_add(frame, row1);
-    frame_add(frame, row2);
-    frame_add(frame, row3);
-    puts("=== Frame Add ===");
-    printf("SIZE: %ld\tCAPACITY: %ld\n", frame->nrows, frame->capacity);
-    print_frame(frame);
+    table_add(tbl, row1);
+    table_add(tbl, row2);
+    table_add(tbl, row3);
+    table_add(tbl, row4);
+    table_add(tbl, row5);
+    table_add(tbl, row6);
+    table_add(tbl, row7);
+    puts("=== Table Add ===");
+    print_table(tbl);
     puts("\n");
 
 
-    frame_update(frame, "fname", "Kasen", "salary", (double []){ 120000 });
-    puts("=== Frame Update ===");
-    print_frame(frame);
+    table_update(tbl, "fname", "Katie", "lname", "Groth");
+    puts("=== Table Update ===");
+    print_table(tbl);
     puts("\n");
 
 
-    frame_add(frame, row4);
-    frame_add(frame, row5);
-    frame_add(frame, row6);
-    frame_add(frame, row7);
-    puts("=== Frame Add ===");
-    printf("SIZE: %ld\tCAPACITY: %ld\n", frame->nrows, frame->capacity);
-    print_frame(frame);
-    puts("\n");
-
-
-    frame_update(frame, "fname", "Katie", "lname", "Groth");
-    puts("=== Frame Update ===");
-    print_frame(frame);
-    puts("\n");
-
-
-    dataframe_t *groths = frame_lookup(frame, "lname", "Groth");
-    puts("=== Frame Search ===");
+    dataframe_t *groths = table_lookup(tbl, "lname", "Groth");
+    puts("=== Table Search ===");
     print_frame(groths);
     puts("\n");
 
-    btree_t *tree = init_btree(2, "id", COL_INT32);
-    btree_add(tree, (void *)(int []){ 1 }, row1);
-    btree_add(tree, (void *)(int []){ 2 }, row2);
-    btree_add(tree, (void *)(int []){ 3 }, row3);
-    btree_add(tree, (void *)(int []){ 4 }, row4);
-    btree_add(tree, (void *)(int []){ 5 }, row5);
-    btree_add(tree, (void *)(int []){ 6 }, row6);
-    btree_add(tree, (void *)(int []){ 7 }, row7);
 
-    puts("=== Btree Add ===");
-    print_btree(tree);
+    table_add(tbl, row8);
+    table_add(tbl, row9);
+    puts("=== Table Add ===");
+    print_table(tbl);
     puts("\n");
 
 
-    frame_update(frame, "fname", "Kasen", "salary", (double []){ 125000 });
-    puts("=== Frame Update ===");
-    print_frame(frame);
-    puts("\n\n=== Btree ===");
-    print_btree(tree);
+    table_remove(tbl, "fname", "Noah");
+    puts("=== Table Remove ===");
+    print_table(tbl);
+    puts("\n");
 
     return 0;
 }

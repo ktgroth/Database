@@ -6,7 +6,7 @@
 #include "include/dataframe.h"
 
 
-datablock_t *construct_block(const dataframe_t *frame, const void **values)
+static datablock_t *construct_block(const dataframe_t *frame, void **values)
 {
     return init_block(frame->ncols, frame->colnames, frame->coltypes, values);
 }
@@ -61,7 +61,7 @@ void print_frame(const dataframe_t *frame)
     }
 }
 
-int frame_insert(dataframe_t *frame, const void **values)
+int frame_insert(dataframe_t *frame, void **values)
 {
     if (!frame || !values)
     {
@@ -79,7 +79,7 @@ int frame_insert(dataframe_t *frame, const void **values)
     return 1;
 }
 
-int frame_add(dataframe_t *frame, const datablock_t *block)
+int frame_add(dataframe_t *frame, datablock_t *block)
 {
     if (!frame || !block)
     {
@@ -106,7 +106,7 @@ int frame_add(dataframe_t *frame, const datablock_t *block)
     return 1;
 }
 
-int frame_remove(dataframe_t *frame, const char *colname, const void *value)
+int frame_remove(dataframe_t *frame, const char *colname, void *value)
 {
     if (!frame || !colname || !value)
     {
@@ -130,18 +130,19 @@ int frame_remove(dataframe_t *frame, const char *colname, const void *value)
     for (size_t i = 0; i < frame->nrows; ++i)
     {
         datablock_t *row = frame->rows[i];
-        if (column_cmp(row->cols[idx], value))
+        if (!column_cmp_value(row->cols[idx], value))
         {
             for (size_t j = i; j < frame->nrows - 1; ++j)
                 frame->rows[j] = frame->rows[j + 1];
             --i;
+            --frame->nrows;
         }
     }
 
     return 1;
 }
 
-const dataframe_t *frame_lookup(const dataframe_t *frame, const char *colname, const void *value)
+const dataframe_t *frame_lookup(const dataframe_t *frame, const char *colname, void *value)
 {
     if (!frame || !colname || !value)
     {
@@ -171,9 +172,9 @@ const dataframe_t *frame_lookup(const dataframe_t *frame, const char *colname, c
     return lookup;
 }
 
-int frame_update(dataframe_t *frame, const char *keyname, const void *keyval, const char *colname, const void *value)
+int frame_update(dataframe_t *frame, const char *keyname, const void *keyval, const char *colname, void *value)
 {
-    if (!frame || !keyname || !keyval || !colname || !value)
+    if (!frame || !colname || !value)
         return 0;
 
     size_t kidx = -1, vidx = -1;
@@ -191,14 +192,13 @@ int frame_update(dataframe_t *frame, const char *keyname, const void *keyval, co
             break;
         }
 
-    if (kidx == -1 || vidx == -1)
+    if (vidx == -1)
         return 0;
 
-    dataframe_t *lookup = init_frame(frame->ncols, frame->colnames, frame->coltypes);
     for (size_t i = 0; i < frame->nrows; ++i)
     {
         datablock_t *row = frame->rows[i];
-        if (!column_cmp_value(row->cols[kidx], keyval))
+        if (!keyval || !column_cmp_value(row->cols[kidx], keyval))
         {
             column_update(row->cols[vidx], value);
         }
