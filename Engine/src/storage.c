@@ -82,7 +82,7 @@ int storage_remove(storage_t *store, const char *colname, void *value)
             return frame_remove(store->frame, colname, value);
 
         case STORAGE_BTREE:
-            return btree_remove(store->btree, value);
+            return btree_remove(store->btree, colname, value);
     }
 
     return 0;
@@ -96,7 +96,7 @@ const dataframe_t *storage_lookup(const storage_t *store, const char *colname, v
             return frame_lookup(store->frame, colname, value);
 
         case STORAGE_BTREE:
-            return btree_search(store->btree, value);
+            return btree_lookup(store->btree, colname, value);
     }
 
     return NULL;
@@ -110,7 +110,7 @@ int storage_update(storage_t *store, const char *keycol, const void *keyval, con
             return frame_update(store->frame, keycol, keyval, colname, value);
 
         case STORAGE_BTREE:
-            return btree_update(store->btree, keyval, colname, value);
+            return btree_update(store->btree, keycol, keyval, colname, value);
     }
 
     return 0;

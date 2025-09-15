@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 
     const char *colnames[] = { "fname", "lname", "age", "salary" };
     const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT32, COL_FLOAT64 };
-    table_t *tbl = init_table(4, colnames, coltypes, 0, NULL, COL_NULL);
+    table_t *tbl = init_table(4, colnames, coltypes, 1, "id", COL_INT64);
 
     // dataframe_t *frame = init_frame(4, colnames, coltypes);
 

@@ -43,9 +43,12 @@ void print_btree(const btree_t *tree);
 
 int btree_insert(btree_t *tree, const void *key, void **values);
 int btree_add(btree_t *tree, const void *key, datablock_t *block);
-int btree_remove(btree_t *tree, void *key);
-const dataframe_t *btree_search(const btree_t *tree, void *key);
-int btree_update(btree_t *tree, const void *key, const char *colname, void *value);
+int btree_remove_key(btree_t *tree, void *key);
+int btree_remove(btree_t *tree, const char *colname, void *value);
+const dataframe_t *btree_lookup_key(const btree_t *tree, void *key);
+const dataframe_t *btree_lookup(const btree_t *tree, const char *colname, void *value);
+int btree_update_key(btree_t *tree, const void *key, size_t colidx, void *value);
+int btree_update(btree_t *tree, const char *keycol, const void *keyval, const char *colname, void *value);
 
 #endif
 
