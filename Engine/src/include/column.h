@@ -7,13 +7,16 @@
 
 typedef struct
 {
-    const char  *name;
-    const datafield_t *field;
+    char  *name;
+    datafield_t *field;
 } column_t;
 
 
 column_t    *init_column(const char *name, datafield_t *field);
 void         free_column(column_t *column);
+
+
+void        *copy_key_value(type_e type, void *src);
 
 
 int          column_cmp(const column_t *c1, const column_t *c2);

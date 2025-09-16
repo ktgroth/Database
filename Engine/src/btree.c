@@ -173,9 +173,114 @@ void btree_split_child(btree_node_t *parent, size_t i)
     ++parent->nkeys;
 }
 
+#define MIN(x, y) ((x) > (y) ? y : x) 
+
+int check_cols(btree_t *tree, datablock_t *block)
+{
+    for (size_t i = 0; i < MIN(tree->ncols, block->ncols); ++i)
+        if (strcmp(tree->colnames[i], block->cols[i]->name))
+            return 0;
+
+    if (tree->ncols != block->ncols)
+        return 0;
+
+    return 1;
+}
+
+static column_t **update_column_metadata(const datablock_t *orig, const btree_t *tree, void *key)
+{
+    size_t ncols = tree->ncols;
+    column_t **new_cols = calloc(ncols, sizeof(column_t *));
+    if (!new_cols)
+        return NULL;
+
+    datafield_t *pk_field = init_field(tree->pktype, key);
+    if (!pk_field)
+    {
+        free(new_cols);
+        return NULL;
+    }
+
+    new_cols[0] = init_column(tree->pkname, pk_field);
+    if (!new_cols[0])
+    {
+        free_field(pk_field);
+        free(new_cols);
+        return NULL;
+    }
+
+    for (size_t i = 1; i < ncols; ++i)
+    {
+        const char *colname = tree->colnames[i];
+        const column_t *src_col = NULL;
+
+        for (size_t j = 0; j < orig->ncols; ++j)
+        {
+            if (!strcmp(orig->cols[j]->name, colname))
+            {
+                src_col = orig->cols[j];
+                break;
+            }
+        }
+
+        datafield_t *new_field = NULL;
+        if (src_col)
+            new_field = init_field(src_col->field->type, copy_key_value(src_col->field->type, src_col->field->value));
+        else
+            new_field = init_field(tree->coltypes[i], NULL);
+
+        if (!new_field)
+        {
+            for (size_t k = 0; k < i; ++k)
+                free_column(new_cols[k]);
+            free(new_cols);
+            return NULL;
+        }
+
+        new_cols[i] = init_column(colname, new_field);
+        if (!new_cols[i])
+        {
+            free_field(new_field);
+            for (size_t k = 0; k < i; ++k)
+                free_column(new_cols[k]);
+            free(new_cols);
+            return NULL;
+        }
+    }
+
+    return new_cols;
+}
+
+static datablock_t *update_block_structure(const datablock_t *orig, const btree_t *tree, const void *key)
+{
+    if (!orig || !tree || !key)
+        return NULL;
+
+    column_t **new_cols = update_column_metadata(orig, tree, key);
+    if (!new_cols)
+        return NULL;
+
+    datablock_t *new_block = init_block(0, NULL, NULL, NULL);
+    if (!new_block)
+    {
+        for (size_t i = 0; i < tree->ncols; ++i)
+            free_column(new_cols[i]);
+        free(new_cols);
+        return NULL;
+    }
+
+    new_block->ncols = tree->ncols;
+    new_block->cols = new_cols;
+
+    return new_block;
+}
+
 int btree_add(btree_t *tree, const void *key, datablock_t *block)
 {
     if (!tree)
+        return 0;
+
+    if (!check_cols(tree, block) && !(block = update_block_structure(block, tree, key)))
         return 0;
 
     btree_node_t *curr = tree->root;
@@ -238,7 +343,10 @@ struct key_dptr_pair btree_get_predecessor(btree_node_t *node, size_t idx)
     node = node->children[idx];
     while (!node->is_leaf)
         node = node->children[node->nkeys];
-    return (struct key_dptr_pair){ .key=node->keys[node->nkeys - 1], .dptr=node->keys[node->nkeys - 1] };
+    return (struct key_dptr_pair){
+        .key=node->keys[node->nkeys - 1],
+        .dptr=node->dptr[node->nkeys - 1]
+    };
 }
 
 struct key_dptr_pair btree_get_successor(btree_node_t *node, size_t idx)
@@ -246,7 +354,10 @@ struct key_dptr_pair btree_get_successor(btree_node_t *node, size_t idx)
     node = node->children[idx + 1];
     while (!node->is_leaf)
         node = node->children[0];
-    return (struct key_dptr_pair){ .key=node->keys[0], .dptr=node->keys[0] };
+    return (struct key_dptr_pair){
+        .key=node->keys[0],
+        .dptr=node->dptr[0]
+    };
 }
 
 void btree_merge(btree_node_t *parent, size_t idx)
@@ -443,30 +554,49 @@ struct key_list btree_find(btree_node_t *node, size_t colidx, void *value)
     struct key_list keys = { .nkeys=0, .keys=NULL };
     for (size_t i = 0; i < node->nkeys; ++i)
     {
-        struct key_list ckeys = btree_find(node->children[i], colidx, value);
         void **new_keys;
-        if (ckeys.nkeys)
+        if (!node->is_leaf)
         {
-            new_keys = realloc(keys.keys, (keys.nkeys + ckeys.nkeys) * sizeof(struct key_list));
-            if (!new_keys)
-                continue;
-
-            keys.keys = new_keys;
-            for (size_t j = 0; j < ckeys.nkeys; ++j)
-                keys.keys[j + keys.nkeys] = ckeys.keys[j];
-
-            free(ckeys.keys);
-            keys.nkeys += ckeys.nkeys;
+            struct key_list ckeys = btree_find(node->children[i], colidx, value);
+            if (ckeys.nkeys)
+            {
+                new_keys = realloc(keys.keys, (keys.nkeys + ckeys.nkeys) * sizeof(struct key_list));
+                if (new_keys)
+                {
+                    keys.keys = new_keys;
+                    for (size_t j = 0; j < ckeys.nkeys; ++j)
+                        keys.keys[keys.nkeys + j] = ckeys.keys;
+                    keys.nkeys += ckeys.nkeys;
+                }
+                free(ckeys.keys);
+            }
         }
 
         if (!column_cmp_value(node->dptr[i]->cols[colidx], value))
         {
             new_keys = realloc(keys.keys, (keys.nkeys + 1) * sizeof(struct key_list));
-            if (!new_keys)
-                continue;
+            if (new_keys)
+            {
+                keys.keys = new_keys;
+                keys.keys[keys.nkeys++] = node->keys[i];
+            }
+        }
+    }
 
-            keys.keys = new_keys;
-            keys.keys[keys.nkeys++] = node->keys[i];
+    if (!node->is_leaf)
+    {
+        struct key_list ckeys = btree_find(node->children[node->nkeys], colidx, value);
+        if (ckeys.nkeys)
+        {
+            void **new_keys = realloc(keys.keys, (keys.nkeys + ckeys.nkeys) * sizeof(void *));
+            if (new_keys)
+            {
+                keys.keys = new_keys;
+                for (size_t i = 0; i < ckeys.nkeys; ++i)
+                    keys.keys[keys.nkeys + i] = ckeys.keys[i];
+                keys.nkeys += ckeys.nkeys;
+            }
+            free(ckeys.keys);
         }
     }
 

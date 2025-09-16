@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 
     const char *colnames[] = { "fname", "lname", "age", "salary" };
     const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT32, COL_FLOAT64 };
-    table_t *tbl = init_table(4, colnames, coltypes, 1, "id", COL_INT64);
+    table_t *tbl = init_table(4, colnames, coltypes, 0, "id", COL_INT64);
 
     // dataframe_t *frame = init_frame(4, colnames, coltypes);
 
@@ -72,6 +72,33 @@ int main(int argc, char *argv[])
     table_remove(tbl, "fname", "Noah");
     puts("=== Table Remove ===");
     print_table(tbl);
+    puts("\n");
+
+
+    puts("=== Table Print Index (\"lname\") ===");
+    print_table_index(tbl, "lname");
+    puts("\n");
+
+
+    table_add_index(tbl, "lname");
+    puts("=== Table Add Index ===");
+    print_table(tbl);
+    puts("\n");
+
+
+    puts("=== Table Print Index (\"lname\") ===");
+    print_table_index(tbl, "lname");
+    puts("\n");
+
+
+    table_remove_index(tbl, "lname");
+    puts("=== Table Remove Index ===");
+    print_table(tbl);
+    puts("\n");
+
+
+    puts("=== Table Print Index (\"lname\") ===");
+    print_table_index(tbl, "lname");
     puts("\n");
 
     return 0;

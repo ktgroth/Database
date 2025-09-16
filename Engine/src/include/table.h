@@ -32,7 +32,11 @@ table_t             *init_table(size_t ncols, const char **colnames, const type_
                                 int indexed, const char *pkname, const type_e pktype);
 void                 free_table(table_t *tbl);
 void                 print_table(const table_t *tbl);
+void                 print_table_index(const table_t *tbl, const char *colname);
 
+
+int                  table_add_index(table_t *tbl, const char *colname);
+int                  table_remove_index(table_t *tbl, const char *colname);
 
 int                  table_insert(table_t *tbl, void **values);
 int                  table_add(table_t *tbl, datablock_t *row);
