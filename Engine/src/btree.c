@@ -175,7 +175,7 @@ void btree_split_child(btree_node_t *parent, size_t i)
 
 #define MIN(x, y) ((x) > (y) ? y : x) 
 
-int check_cols(btree_t *tree, datablock_t *block)
+static int check_cols(btree_t *tree, datablock_t *block)
 {
     for (size_t i = 0; i < MIN(tree->ncols, block->ncols); ++i)
         if (strcmp(tree->colnames[i], block->cols[i]->name))
@@ -260,7 +260,7 @@ static datablock_t *update_block_structure(const datablock_t *orig, const btree_
     if (!new_cols)
         return NULL;
 
-    datablock_t *new_block = init_block(0, NULL, NULL, NULL);
+    datablock_t *new_block = init_block(tree->ncols, tree->colnames, tree->coltypes, NULL);
     if (!new_block)
     {
         for (size_t i = 0; i < tree->ncols; ++i)
@@ -269,8 +269,8 @@ static datablock_t *update_block_structure(const datablock_t *orig, const btree_
         return NULL;
     }
 
-    new_block->ncols = tree->ncols;
     new_block->cols = new_cols;
+    new_block->ncols = tree->ncols;
 
     return new_block;
 }

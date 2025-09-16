@@ -61,6 +61,93 @@ void print_frame(const dataframe_t *frame)
     }
 }
 
+#define MIN(x, y) ((x) > (y) ? y : x) 
+
+static int check_cols(dataframe_t *frame, datablock_t *block)
+{
+    for (size_t i = 0; i < MIN(frame->ncols, block->ncols); ++i)
+        if (strcmp(frame->colnames[i], block->cols[i]->name))
+            return 0;
+
+    if (frame->ncols != block->ncols)
+        return 0;
+
+    return 1;
+}
+
+static column_t **update_column_metadata(const datablock_t *orig, const dataframe_t *frame)
+{
+    size_t ncols = frame->ncols;
+    column_t **new_cols = calloc(ncols, sizeof(column_t *));
+    if (!new_cols)
+        return NULL;
+
+    for (size_t i = 0; i < ncols; ++i)
+    {
+        const char *colname = frame->colnames[i];
+
+        const column_t *src_col = NULL;
+        for (size_t j = 0; j < orig->ncols; ++j)
+        {
+            if (!strcmp(orig->cols[j]->name, colname))
+            {
+                src_col = orig->cols[j];
+                break;
+            }
+        }
+
+        datafield_t *new_field = NULL;
+        if (src_col)
+            new_field = init_field(src_col->field->type, copy_key_value(src_col->field->type, src_col->field->value));
+        else
+            new_field = init_field(frame->coltypes[i], NULL);
+
+        if (!new_field)
+        {
+            for (size_t k = 0; k < i; ++k)
+                free_column(new_cols[k]);
+            free(new_cols);
+            return NULL;
+        }
+
+        new_cols[i] = init_column(colname, new_field);
+        if (!new_cols[i])
+        {
+            free_field(new_field);
+            for (size_t k = 0; k < i; ++k)
+                free_column(new_cols[k]);
+            free(new_cols);
+            return NULL;
+        }
+    }
+
+    return new_cols;
+}
+
+static datablock_t *update_block_structure(const datablock_t *orig, const dataframe_t *frame)
+{
+    if (!orig || !frame)
+        return NULL;
+
+    column_t **new_cols = update_column_metadata(orig, frame);
+    if (!new_cols)
+        return NULL;
+
+    datablock_t *new_block = init_block(frame->ncols, frame->colnames, frame->coltypes, NULL);
+    if (!new_block)
+    {
+        for (size_t i = 0; i < frame->ncols; ++i)
+            free_column(new_cols[i]);
+        free(new_cols);
+        return NULL;
+    }
+
+    new_block->ncols = frame->ncols;
+    new_block->cols = new_cols;
+
+    return new_block;
+}
+
 int frame_insert(dataframe_t *frame, void **values)
 {
     if (!frame || !values)
@@ -86,6 +173,9 @@ int frame_add(dataframe_t *frame, datablock_t *block)
         perror("!frame || !block");
         return 0;
     }
+
+    if (!check_cols(frame, block) && !(block = update_block_structure(block, frame)))
+        return 0;
 
     if (frame->nrows == frame->capacity)
     {

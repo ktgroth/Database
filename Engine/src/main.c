@@ -14,9 +14,7 @@ int main(int argc, char *argv[])
 
     const char *colnames[] = { "fname", "lname", "age", "salary" };
     const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT32, COL_FLOAT64 };
-    table_t *tbl = init_table(4, colnames, coltypes, 0, "id", COL_INT64);
-
-    // dataframe_t *frame = init_frame(4, colnames, coltypes);
+    table_t *tbl = init_table(4, colnames, coltypes, 1, "id", COL_STRING);
 
     void *block1[] = { "Kasen", "Groth", (int []){ 22 }, (double []){ 65000 } };
     void *block2[] = { "Nuno", "Alves", (int []){ 22 }, (double []){ 60000 } };
@@ -28,6 +26,11 @@ int main(int argc, char *argv[])
     void *block8[] = { "Kyle", "Hammermueller", (int []){ 23 }, (double []){ 100000 } };
     void *block9[] = { "Liam", "Boyle", (int []){ 22 }, (double []){ 98000 } };
 
+    const char *colnames2[] = { "fname", "lname", "nkids", "salary", "age" };
+    const type_e coltypes2[] = { COL_STRING, COL_STRING, COL_INT8, COL_FLOAT64, COL_INT32 };
+    void *block10[] = { "Heidi", "Groth", (int8_t []){ 4 }, (double []){ 50000 }, (int []){ 62 } };
+    void *block11[] = { "Richard", "Groth", (int8_t []){ 4 }, (double []){ 250000 }, (int []){ 57 } };
+
     datablock_t *row1 = init_block(tbl->ncols, colnames, coltypes, block1);
     datablock_t *row2 = init_block(tbl->ncols, colnames, coltypes, block2);
     datablock_t *row3 = init_block(tbl->ncols, colnames, coltypes, block3);
@@ -37,6 +40,8 @@ int main(int argc, char *argv[])
     datablock_t *row7 = init_block(tbl->ncols, colnames, coltypes, block7);
     datablock_t *row8 = init_block(tbl->ncols, colnames, coltypes, block8);
     datablock_t *row9 = init_block(tbl->ncols, colnames, coltypes, block9);
+    datablock_t *row10 = init_block(5, colnames2, coltypes2, block10);
+    datablock_t *row11 = init_block(5, colnames2, coltypes2, block11);
 
     table_add(tbl, row1);
     table_add(tbl, row2);
@@ -100,6 +105,14 @@ int main(int argc, char *argv[])
     puts("=== Table Print Index (\"lname\") ===");
     print_table_index(tbl, "lname");
     puts("\n");
+
+
+    table_add(tbl, row10);
+    table_add(tbl, row11);
+    puts("=== Table Add (Malformed) ===");
+    print_table(tbl);
+    puts("\n");
+
 
     return 0;
 }

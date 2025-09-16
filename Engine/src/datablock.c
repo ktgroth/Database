@@ -17,7 +17,7 @@ datablock_t *init_block(size_t ncols, const char **colnames, const type_e *colty
 
     block->ncols = ncols;
     block->cols = (column_t **)calloc(ncols, sizeof(column_t *));
-    for (size_t i = 0; i < ncols; ++i)
+    for (size_t i = 0; i < ncols && values; ++i)
         block->cols[i] = init_column(colnames[i], init_field(coltypes[i], values[i]));
 
     return block;

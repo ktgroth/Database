@@ -12,6 +12,7 @@
 typedef struct
 {
     const char       *name;
+    size_t            indexed;
 
     size_t            nidxs;
     btree_t         **idxs;
@@ -21,7 +22,6 @@ typedef struct
     const type_e     *coltypes;
 
     size_t            nrows;
-    int               indexed;
     char             *pkname;
     type_e            pktype;
     storage_t        *rows;
