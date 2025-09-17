@@ -28,7 +28,7 @@ typedef struct
 } table_t;
 
 
-table_t             *init_table(size_t ncols, const char **colnames, const type_e *coltypes,
+table_t             *init_table(const char *name, size_t ncols, const char **colnames, const type_e *coltypes,
                                 int indexed, const char *pkname, const type_e pktype);
 void                 free_table(table_t *tbl);
 void                 print_table(const table_t *tbl);

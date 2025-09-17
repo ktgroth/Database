@@ -6,7 +6,7 @@
 #include "include/table.h"
 
 
-table_t *init_table(size_t ncols, const char **colnames, const type_e *coltypes, int indexed, const char *pkname, const type_e pktype)
+table_t *init_table(const char *name, size_t ncols, const char **colnames, const type_e *coltypes, int indexed, const char *pkname, const type_e pktype)
 {
     table_t *tbl = (table_t *)calloc(1, sizeof(table_t));
     if (!tbl)
@@ -15,6 +15,7 @@ table_t *init_table(size_t ncols, const char **colnames, const type_e *coltypes,
         return NULL;
     }
 
+    tbl->name = strdup(name);
     tbl->ncols = ncols;
     tbl->colnames = (const char **)calloc(ncols, sizeof(const char *));
     tbl->coltypes = (const type_e *)calloc(ncols, sizeof(const type_e));
@@ -147,6 +148,7 @@ void print_table(const table_t *tbl)
     if (!tbl)
         return;
 
+    printf("TABLE: %s\n", tbl->name);
     for (size_t i = 0; i < tbl->ncols; ++i)
     {
         if (tbl->pkname && !strcmp(tbl->colnames[i], tbl->pkname))
@@ -299,18 +301,39 @@ static void hex_to_ascii(const unsigned char in[32], char out[65])
 
 static const void *table_generate_key(table_t *tbl)
 {
+    void *ptr = NULL;
     switch (tbl->pktype)
     {
         case COL_BOOL:
         case COL_INT8:
+            ptr = (uint8_t *)malloc(sizeof(uint8_t));
+            *(uint8_t *)ptr = tbl->indexed++;
+            break;
+
         case COL_INT16:
+            ptr = (uint16_t *)malloc(sizeof(uint16_t));
+            *(uint16_t *)ptr = tbl->indexed++;
+            break;
+
         case COL_INT32:
+            ptr = (uint32_t *)malloc(sizeof(uint32_t));
+            *(uint32_t *)ptr = tbl->indexed++;
+            break;
+
         case COL_INT64:
+            ptr = (uint64_t *)malloc(sizeof(uint64_t));
+            *(uint64_t *)ptr = tbl->indexed++;
+            break;
+
         case COL_FLOAT32:
+            ptr = (float *)malloc(sizeof(float *));
+            *(float *)ptr = (float)tbl->indexed++;
+            break;
+
         case COL_FLOAT64:
-            size_t *ptr = (size_t *)malloc(sizeof(size_t));
-            *ptr = tbl->indexed++;
-            return ptr;
+            ptr = (double *)malloc(sizeof(double));
+            *(double *)ptr = (double)tbl->indexed++;
+            break;
 
         case COL_STRING:
             unsigned char hex[32];
@@ -325,8 +348,10 @@ static const void *table_generate_key(table_t *tbl)
             return key;
 
         default:
-            return 0;
+            break;
     }
+
+    return ptr;
 }
 
 int create_index_btree(btree_t *index, btree_node_t *node, size_t colidx)
@@ -441,6 +466,111 @@ int table_remove_index(table_t *tbl, const char *colname)
     --tbl->nidxs;
 }
 
+#define MIN(x, y) ((x) > (y) ? y : x) 
+
+static int check_cols(const table_t *tbl, const datablock_t *block)
+{
+    for (size_t i = 0; i < MIN(tbl->ncols, block->ncols); ++i)
+        if (strcmp(tbl->colnames[i], block->cols[i]->name))
+            return 0;
+
+    if (tbl->ncols != block->ncols)
+        return 0;
+
+    return 1;
+}
+
+static column_t **update_column_metadata(const datablock_t *orig, const table_t *tbl, void *key)
+{
+    size_t ncols = tbl->ncols;
+    column_t **new_cols = calloc(ncols, sizeof(column_t *));
+    if (!new_cols)
+        return NULL;
+
+    if (tbl->indexed)
+    {
+        datafield_t *pk_field = init_field(tbl->pktype, key);
+        if (!pk_field)
+        {
+            free(new_cols);
+            return NULL;
+        }
+
+        new_cols[0] = init_column(tbl->pkname, pk_field);
+        if (!new_cols[0])
+        {
+            free_field(pk_field);
+            free(new_cols);
+            return NULL;
+        }
+    }
+
+    for (size_t i = tbl->indexed != 0; i < ncols; ++i)
+    {
+        const char *colname = tbl->colnames[i];
+
+        const column_t *src_col = NULL;
+        for (size_t j = 0; j < orig->ncols; ++j)
+        {
+            if (!strcmp(orig->cols[j]->name, colname))
+            {
+                src_col = orig->cols[j];
+                break;
+            }
+        }
+
+        datafield_t *new_field = NULL;
+        if (src_col)
+            new_field = init_field(src_col->field->type, copy_key_value(src_col->field->type, src_col->field->value));
+        else
+            new_field = init_field(tbl->coltypes[i], NULL);
+
+        if (!new_field)
+        {
+            for (size_t k = 0; k < i; ++k)
+                free_column(new_cols[k]);
+            free(new_cols);
+            return NULL;
+        }
+
+        new_cols[i] = init_column(colname, new_field);
+        if (!new_cols[i])
+        {
+            free_field(new_field);
+            for (size_t k = 0; k < i; ++k)
+                free_column(new_cols[k]);
+            free(new_cols);
+            return NULL;
+        }
+    }
+
+    return new_cols;
+}
+
+static datablock_t *update_block_structure(const datablock_t *orig, const table_t *tbl, void *key)
+{
+    if (!orig || !tbl)
+        return NULL;
+
+    column_t **new_cols = update_column_metadata(orig, tbl, key);
+    if (!new_cols)
+        return NULL;
+
+    datablock_t *new_block = init_block(tbl->ncols, tbl->colnames, tbl->coltypes, NULL);
+    if (!new_block)
+    {
+        for (size_t i = 0; i < tbl->ncols; ++i)
+            free_column(new_cols[i]);
+        free(new_cols);
+        return NULL;
+    }
+
+    new_block->ncols = tbl->ncols;
+    new_block->cols = new_cols;
+
+    return new_block;
+}
+
 int table_insert(table_t *tbl, void **values)
 {
     if (!tbl || !values)
@@ -462,6 +592,24 @@ int table_insert(table_t *tbl, void **values)
     return 0;
 }
 
+static int table_add_to_index(btree_t *tree, datablock_t *row)
+{
+    const char *colname = tree->pkname;
+
+    size_t idx = -1;
+    for (size_t i = 0; i < row->ncols; ++i)
+        if (!strcmp(colname, row->cols[i]->name))
+        {
+            idx = i;
+            break;
+        }
+
+    if (idx == -1)
+        return 0;
+
+    return btree_add(tree, row->cols[idx]->field->value, row);
+}
+
 int table_add(table_t *tbl, datablock_t *row)
 {
     if (!tbl || !row)
@@ -470,17 +618,27 @@ int table_add(table_t *tbl, datablock_t *row)
         return 0;
     }
 
-    const void *key = NULL;
+    void *key = NULL;
     if (tbl->indexed)
         key = table_generate_key(tbl);
 
-    if (storage_add(tbl->rows, key, row))
-    {
-        ++tbl->nrows;
-        return 1;
-    }
+    if (!check_cols(tbl, row) && !(row = update_block_structure(row, tbl, key)))
+        return 0;
 
-    return 0;
+    for (size_t i = 0; i < tbl->nidxs; ++i)
+        if (!table_add_to_index(tbl->idxs[i], row))
+            return 0;
+
+    if (!storage_add(tbl->rows, key, row))
+        return 0;
+
+    ++tbl->nrows;
+    return 1;
+}
+
+static int table_remove_from_index(btree_t *tree, void *value)
+{
+    return btree_remove_key(tree, value);
 }
 
 int table_remove(table_t *tbl, const char *colname, void *value)
@@ -490,6 +648,10 @@ int table_remove(table_t *tbl, const char *colname, void *value)
         fprintf(stderr, "!tbl || !colname || !value");
         return 0;
     }
+
+    for (size_t i = 0; i < tbl->nidxs; ++i)
+        if (!strcmp(tbl->idxs[i]->pkname, colname) && !table_remove_from_index(tbl->idxs[i], value))
+            return 0;
 
     if (storage_remove(tbl->rows, colname, value))
     {
@@ -507,6 +669,10 @@ const dataframe_t *table_lookup(const table_t *tbl, const char *colname, void *v
         fprintf(stderr, "!tbl || !colname || !value");
         return NULL;
     }
+
+    for (size_t i = 0; i < tbl->nidxs; ++i)
+        if (!strcmp(tbl->idxs[i]->pkname, colname))
+            return btree_lookup_key(tbl->idxs[i], value);
 
     return storage_lookup(tbl->rows, colname, value);
 }

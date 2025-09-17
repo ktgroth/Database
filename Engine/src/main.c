@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 
     const char *colnames[] = { "fname", "lname", "age", "salary" };
     const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT32, COL_FLOAT64 };
-    table_t *tbl = init_table(4, colnames, coltypes, 1, "id", COL_STRING);
+    table_t *tbl = init_table("people", 4, colnames, coltypes, 1, "id", COL_INT64);
 
     void *block1[] = { "Kasen", "Groth", (int []){ 22 }, (double []){ 65000 } };
     void *block2[] = { "Nuno", "Alves", (int []){ 22 }, (double []){ 60000 } };
@@ -31,15 +31,15 @@ int main(int argc, char *argv[])
     void *block10[] = { "Heidi", "Groth", (int8_t []){ 4 }, (double []){ 50000 }, (int []){ 62 } };
     void *block11[] = { "Richard", "Groth", (int8_t []){ 4 }, (double []){ 250000 }, (int []){ 57 } };
 
-    datablock_t *row1 = init_block(tbl->ncols, colnames, coltypes, block1);
-    datablock_t *row2 = init_block(tbl->ncols, colnames, coltypes, block2);
-    datablock_t *row3 = init_block(tbl->ncols, colnames, coltypes, block3);
-    datablock_t *row4 = init_block(tbl->ncols, colnames, coltypes, block4);
-    datablock_t *row5 = init_block(tbl->ncols, colnames, coltypes, block5);
-    datablock_t *row6 = init_block(tbl->ncols, colnames, coltypes, block6);
-    datablock_t *row7 = init_block(tbl->ncols, colnames, coltypes, block7);
-    datablock_t *row8 = init_block(tbl->ncols, colnames, coltypes, block8);
-    datablock_t *row9 = init_block(tbl->ncols, colnames, coltypes, block9);
+    datablock_t *row1 = init_block(4, colnames, coltypes, block1);
+    datablock_t *row2 = init_block(4, colnames, coltypes, block2);
+    datablock_t *row3 = init_block(4, colnames, coltypes, block3);
+    datablock_t *row4 = init_block(4, colnames, coltypes, block4);
+    datablock_t *row5 = init_block(4, colnames, coltypes, block5);
+    datablock_t *row6 = init_block(4, colnames, coltypes, block6);
+    datablock_t *row7 = init_block(4, colnames, coltypes, block7);
+    datablock_t *row8 = init_block(4, colnames, coltypes, block8);
+    datablock_t *row9 = init_block(4, colnames, coltypes, block9);
     datablock_t *row10 = init_block(5, colnames2, coltypes2, block10);
     datablock_t *row11 = init_block(5, colnames2, coltypes2, block11);
 

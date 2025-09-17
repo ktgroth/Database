@@ -91,26 +91,31 @@ datafield_t *init_field(type_e type, const void *value)
     }
 
     field->type = type;
-    switch (type)
+    if (!value)
+        field->value = (void *)calloc(1, sizeof(blob_t));
+    else
     {
-        case COL_NULL:
-            break;
+        switch (type)
+        {
+            case COL_NULL:
+                break;
 
-        case COL_BOOL:
-        case COL_INT8:
-        case COL_INT16:
-        case COL_INT32:
-        case COL_INT64:
-        case COL_FLOAT32:
-        case COL_FLOAT64:
-        case COL_STRING:
-        case COL_DATETIME:
-            field->value = value;
-            break;
+            case COL_BOOL:
+            case COL_INT8:
+            case COL_INT16:
+            case COL_INT32:
+            case COL_INT64:
+            case COL_FLOAT32:
+            case COL_FLOAT64:
+            case COL_STRING:
+            case COL_DATETIME:
+                field->value = value;
+                break;
 
-        case COL_BLOB:
-            field->blob = construct_blob_path(value);
-            break;
+            case COL_BLOB:
+                field->blob = construct_blob_path(value);
+                break;
+        }
     }
 
     return field;
