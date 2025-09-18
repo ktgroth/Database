@@ -42,8 +42,7 @@ function comp {
 function clean {
     clear
 
-    rm -rf $OBJ
-    rm -rf $BUILD
+    rm -rf $(find . -mindepth 1 -maxdepth 1 -type d ! -name "src")
 }
 
 for arg in "$@"; do
