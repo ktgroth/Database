@@ -8,7 +8,7 @@
 
 void print_value(type_e type, const void *value)
 {
-    switch (type)
+    switch (type & ~KEY_PK & ~KEY_FK)
     {
         case COL_NULL:
             printf(" %-15s ", "NULL");
@@ -48,7 +48,7 @@ void print_value(type_e type, const void *value)
 
 int value_cmp(type_e type, const void *a, const void *b)
 {
-    switch (type)
+    switch (type & ~KEY_PK & ~KEY_FK)
     {
         case COL_NULL:
             return 0;
@@ -95,7 +95,7 @@ datafield_t *init_field(type_e type, const void *value)
         field->value = (void *)calloc(1, sizeof(blob_t));
     else
     {
-        switch (type)
+        switch (type & ~KEY_PK & ~KEY_FK)
         {
             case COL_NULL:
                 break;
@@ -160,7 +160,7 @@ int field_update(datafield_t *field, const void *value)
     if (!field || !value)
         return 0;
 
-    switch (field->type)
+    switch (field->type & ~KEY_PK & ~KEY_FK)
     {
         case COL_NULL:
             break;

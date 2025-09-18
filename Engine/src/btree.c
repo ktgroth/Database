@@ -38,7 +38,7 @@ void free_btree_node(btree_node_t *node)
     if (!node)
         return;
 
-    if (node->is_leaf)
+    if (!node->is_leaf)
     {
         for (size_t i = 0; i <= node->nkeys; ++i)
             free_btree_node(node->children[i]);
@@ -103,7 +103,7 @@ void free_btree(btree_t *tree)
     if (!tree)
         return;
 
-    free(tree->root);
+    free_btree_node(tree->root);
     free(tree);
 }
 
@@ -370,7 +370,7 @@ void btree_merge(btree_node_t *parent, size_t idx)
     for (size_t i = 0; i < sibling->nkeys; ++i)
     {
         child->keys[child->nkeys + 1 + i] = sibling->keys[i];
-        child->keys[child->nkeys + 1 + i] = sibling->dptr[i];
+        child->dptr[child->nkeys + 1 + i] = sibling->dptr[i];
     }
 
     if (!child->is_leaf)
@@ -527,8 +527,7 @@ int btree_remove_key(btree_t *tree, void *key)
     if (tree->root->nkeys == 0)
     {
         btree_node_t *old = tree->root;
-        if (old->is_leaf);
-        else
+        if (!old->is_leaf)
             tree->root = old->children[0];
 
         free(old->children);
@@ -560,12 +559,12 @@ struct key_list btree_find(btree_node_t *node, size_t colidx, void *value)
             struct key_list ckeys = btree_find(node->children[i], colidx, value);
             if (ckeys.nkeys)
             {
-                new_keys = realloc(keys.keys, (keys.nkeys + ckeys.nkeys) * sizeof(struct key_list));
+                new_keys = realloc(keys.keys, (keys.nkeys + ckeys.nkeys) * sizeof(void *));
                 if (new_keys)
                 {
                     keys.keys = new_keys;
                     for (size_t j = 0; j < ckeys.nkeys; ++j)
-                        keys.keys[keys.nkeys + j] = ckeys.keys;
+                        keys.keys[keys.nkeys + j] = ckeys.keys[j];
                     keys.nkeys += ckeys.nkeys;
                 }
                 free(ckeys.keys);
@@ -574,7 +573,7 @@ struct key_list btree_find(btree_node_t *node, size_t colidx, void *value)
 
         if (!column_cmp_value(node->dptr[i]->cols[colidx], value))
         {
-            new_keys = realloc(keys.keys, (keys.nkeys + 1) * sizeof(struct key_list));
+            new_keys = realloc(keys.keys, (keys.nkeys + 1) * sizeof(void *));
             if (new_keys)
             {
                 keys.keys = new_keys;
@@ -624,6 +623,8 @@ datablock_t *btree_get(const btree_t *tree, void *key)
         curr = curr->children[idx];
     }
 
+    print_value(tree->pktype, key);
+    fprintf(stderr, "not in btree.\n");
     return NULL;
 }
 
@@ -647,7 +648,10 @@ int btree_remove(btree_t *btree, const char *colname, void *value)
         }
 
     if (idx == -1)
+    {
+        fprintf(stderr, "%s not in btree.\n", colname);
         return 0;
+    }
 
     struct key_list rkeys = btree_find(btree->root, idx, value);
     for (size_t i = 0; i < rkeys.nkeys; ++i)
@@ -659,7 +663,7 @@ int btree_remove(btree_t *btree, const char *colname, void *value)
 
 const dataframe_t *btree_lookup_key(const btree_t *tree, void *key)
 {
-    if (!tree)
+    if (!tree || !key)
         return NULL;
 
     btree_node_t *curr = tree->root;

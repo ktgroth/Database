@@ -7,17 +7,20 @@
 
 typedef enum
 {
-    COL_NULL,
-    COL_BOOL,
-    COL_INT8,
-    COL_INT16,
-    COL_INT32,
-    COL_INT64,
-    COL_FLOAT32,
-    COL_FLOAT64,
-    COL_STRING,
-    COL_DATETIME,
-    COL_BLOB,
+    COL_NULL        = 0,
+    COL_BOOL        = 1,
+    COL_INT8        = 2,
+    COL_INT16       = 3,
+    COL_INT32       = 4,
+    COL_INT64       = 5,
+    COL_FLOAT32     = 6,
+    COL_FLOAT64     = 7,
+    COL_STRING      = 8,
+    COL_DATETIME    = 9,
+    COL_BLOB        = 10,
+
+    KEY_PK          = 1 << 30,
+    KEY_FK          = 1 << 31,
 } type_e;
 
 typedef struct

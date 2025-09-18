@@ -1,7 +1,8 @@
 
 #include <stdio.h>
 
-#include "include/table.h"
+#include "include/database.h"
+#include "include/bptree.h"
 
 
 #define UNUSED(x) (void)(x);
@@ -12,24 +13,31 @@ int main(int argc, char *argv[])
     UNUSED(argc)
     UNUSED(argv);
 
-    const char *colnames[] = { "fname", "lname", "age", "salary" };
-    const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT32, COL_FLOAT64 };
-    table_t *tbl = init_table("people", 4, colnames, coltypes, 1, "id", COL_INT64);
+    database_t *db = init_database("test");
 
-    void *block1[] = { "Kasen", "Groth", (int []){ 22 }, (double []){ 65000 } };
-    void *block2[] = { "Nuno", "Alves", (int []){ 22 }, (double []){ 60000 } };
-    void *block3[] = { "Christian", "Groth", (int []){ 23 }, (double []){ 75000 } };
-    void *block4[] = { "Joseph", "Speidel", (int []){ 22 }, (double []){ 100000 } };
-    void *block5[] = { "Camryn", "Groth", (int []){ 26 }, (double []){ 68000 } };
-    void *block6[] = { "Katie", "Smith", (int []){ 28 }, (double []){ 48000 } };
-    void *block7[] = { "Noah", "Smith", (int []){ 27 }, (double []){ 88000 } };
-    void *block8[] = { "Kyle", "Hammermueller", (int []){ 23 }, (double []){ 100000 } };
-    void *block9[] = { "Liam", "Boyle", (int []){ 22 }, (double []){ 98000 } };
+    const char *colnames[] = { "fname", "lname", "age", "salary" };
+    const type_e coltypes[] = { COL_STRING, COL_STRING, COL_INT8, COL_FLOAT64 };
+    table_t *tbl = init_table("people", 4, colnames, coltypes, 1, "id", KEY_PK | COL_INT64);
+
+    puts("=== Database Add ===");
+    database_add_table(db, tbl);
+    print_database(db);
+    puts("\n");
+
+    void *block1[] = { "Kasen", "Groth", (char []){ 22 }, (double []){ 65000 } };
+    void *block2[] = { "Nuno", "Alves", (char []){ 22 }, (double []){ 60000 } };
+    void *block3[] = { "Christian", "Groth", (char []){ 23 }, (double []){ 75000 } };
+    void *block4[] = { "Joseph", "Speidel", (char []){ 22 }, (double []){ 100000 } };
+    void *block5[] = { "Camryn", "Groth", (char []){ 26 }, (double []){ 68000 } };
+    void *block6[] = { "Katie", "Smith", (char []){ 28 }, (double []){ 48000 } };
+    void *block7[] = { "Noah", "Smith", (char []){ 27 }, (double []){ 88000 } };
+    void *block8[] = { "Kyle", "Hammermueller", (char []){ 23 }, (double []){ 100000 } };
+    void *block9[] = { "Liam", "Boyle", (char []){ 22 }, (double []){ 98000 } };
 
     const char *colnames2[] = { "fname", "lname", "nkids", "salary", "age" };
-    const type_e coltypes2[] = { COL_STRING, COL_STRING, COL_INT8, COL_FLOAT64, COL_INT32 };
-    void *block10[] = { "Heidi", "Groth", (int8_t []){ 4 }, (double []){ 50000 }, (int []){ 62 } };
-    void *block11[] = { "Richard", "Groth", (int8_t []){ 4 }, (double []){ 250000 }, (int []){ 57 } };
+    const type_e coltypes2[] = { COL_STRING, COL_STRING, COL_INT8, COL_FLOAT64, COL_INT8 };
+    void *block10[] = { "Heidi", "Groth", (char []){ 4 }, (double []){ 50000 }, (char []){ 62 } };
+    void *block11[] = { "Richard", "Groth", (char []){ 4 }, (double []){ 250000 }, (char []){ 57 } };
 
     datablock_t *row1 = init_block(4, colnames, coltypes, block1);
     datablock_t *row2 = init_block(4, colnames, coltypes, block2);
@@ -42,6 +50,21 @@ int main(int argc, char *argv[])
     datablock_t *row9 = init_block(4, colnames, coltypes, block9);
     datablock_t *row10 = init_block(5, colnames2, coltypes2, block10);
     datablock_t *row11 = init_block(5, colnames2, coltypes2, block11);
+
+
+    bptree_t *tree = init_bptree(2, 4, colnames, coltypes, "id", KEY_PK | COL_INT64);
+
+    bptree_add(tree, (size_t []){ 1 }, row1);
+    bptree_add(tree, (size_t []){ 2 }, row2);
+    bptree_add(tree, (size_t []){ 3 }, row3);
+    bptree_add(tree, (size_t []){ 4 }, row4);
+    bptree_add(tree, (size_t []){ 5 }, row5);
+    bptree_add(tree, (size_t []){ 6 }, row6);
+    bptree_add(tree, (size_t []){ 7 }, row7);
+    puts("=== B+Tree Add ===");
+    print_bptree(tree);
+    puts("\n");
+
 
     table_add(tbl, row1);
     table_add(tbl, row2);
@@ -113,6 +136,8 @@ int main(int argc, char *argv[])
     print_table(tbl);
     puts("\n");
 
+
+    database_write(db);
 
     return 0;
 }

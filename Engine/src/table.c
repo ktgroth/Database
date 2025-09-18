@@ -120,7 +120,7 @@ void print_table_btree(btree_node_t *node, type_e type)
     for (size_t i = 0; i < node->nkeys; ++i)
     {
         if (!node->is_leaf)
-            print_btree_node(node->children[i], type);
+            print_table_btree(node->children[i], type);
 
         datablock_t *data = node->dptr[i];
         for (size_t j = 0; j < data->ncols; ++j)
@@ -129,7 +129,7 @@ void print_table_btree(btree_node_t *node, type_e type)
     }
 
     if (!node->is_leaf)
-        print_btree_node(node->children[node->nkeys], type);
+        print_table_btree(node->children[node->nkeys], type);
 }
 
 void print_table_frame(dataframe_t *frame)
@@ -177,21 +177,42 @@ void print_table_index(const table_t *tbl, const char *colname)
         return;
     }
 
-    size_t idx = -1;
+    size_t iidx = -1, cidx = -1;
     for (size_t i = 0; i < tbl->nidxs; ++i)
         if (!strcmp(colname, tbl->idxs[i]->pkname))
         {
-            idx = i;
+            iidx = i;
             break;
         }
 
-    if (idx == -1)
+    for (size_t i = 0; i < tbl->ncols; ++i)
+        if (!strcmp(colname, tbl->colnames[i]))
+        {
+            cidx = i;
+            break;
+        }
+
+    if (iidx == -1 || cidx == -1)
     {
         fprintf(stderr, "%s has no associated index.", colname);
         return;
     }
 
-    print_btree(tbl->idxs[idx]);
+    printf("TABLE: %s\tINDEX: %s\n", tbl->name, tbl->idxs[iidx]->pkname);
+    for (size_t i = 0; i < tbl->ncols; ++i)
+    {
+        if (tbl->pkname && !strcmp(tbl->colnames[i], tbl->pkname))
+            printf(" \033[33m\033[1m%-15s\033[0m ", tbl->pkname);
+        else
+        {
+            int idx = is_index(tbl, tbl->colnames[i]);
+            if (idx)
+                printf("\033[32m\033[1m");
+            printf(" %-15s\033[0m ", tbl->colnames[i]);
+        }
+    }
+    puts("");
+    print_table_btree(tbl->idxs[iidx]->root, tbl->coltypes[cidx]);
 }
 
 static const uint32_t K[64] = {
@@ -302,7 +323,7 @@ static void hex_to_ascii(const unsigned char in[32], char out[65])
 static const void *table_generate_key(table_t *tbl)
 {
     void *ptr = NULL;
-    switch (tbl->pktype)
+    switch (tbl->pktype & ~KEY_PK & ~KEY_FK)
     {
         case COL_BOOL:
         case COL_INT8:

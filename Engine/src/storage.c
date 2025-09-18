@@ -23,7 +23,7 @@ storage_t *init_storage(storage_type_e type, size_t ncols, const char **colnames
             break;
 
         case STORAGE_BTREE:
-            store->btree = init_btree(80, ncols, colnames, coltypes, pkname, pktype);
+            store->btree = init_btree(2, ncols, colnames, coltypes, pkname, pktype);
             break;
     }
 
