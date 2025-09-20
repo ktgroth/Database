@@ -2,6 +2,8 @@
 #ifndef GDB_TYPES_
 #define GDB_TYPES_
 
+#include <stdio.h>
+
 #include <stdint.h>
 
 

@@ -85,12 +85,6 @@ void print_bptree_node(const bptree_node_t *node, type_e type)
     if (!node)
         return;
 
-    if (!node->is_leaf)
-    {
-        print_bptree_node(node->children[0], type);
-        return;
-    }
-
     for (size_t i = 0; i < node->nkeys; ++i)
     {
         print_value(type, node->keys[i]);
@@ -104,7 +98,7 @@ void print_bptree_node(const bptree_node_t *node, type_e type)
 }
 
 
-bptree_t *init_bptree(size_t u, size_t ncols, const char **colnames, const type_e *coltypes, const char *pkname, const type_e pktype)
+bptree_t *init_bptree(size_t u, size_t ncols, char **colnames, type_e *coltypes, char *pkname, type_e pktype)
 {
     bptree_t *tree = (bptree_t *)calloc(1, sizeof(bptree_t));
     if (!tree)
@@ -154,10 +148,10 @@ void print_bptree(const bptree_t *tree)
         printf(" %-15s ", block->cols[i]->name);
     puts("");
 
-    print_bptree_node(tree->root, tree->pktype);
+    print_bptree_node(tree->first_leaf, tree->pktype);
 }
 
-int bptree_insert(bptree_t *tree, const void *key, void **values)
+int bptree_insert(bptree_t *tree, void *key, void **values)
 {
     if (!tree || !key || !values)
         return 0;
@@ -212,7 +206,7 @@ void bptree_split_child(bptree_node_t *parent, size_t i)
 
 #define MIN(x, y) ((x) > (y) ? y : x) 
 
-static int check_cols(bptree_t *tree, datablock_t *block)
+static int check_cols(const bptree_t *tree, const datablock_t *block)
 {
     for (size_t i = 0; i < MIN(tree->ncols, block->ncols); ++i)
         if (strcmp(tree->colnames[i], block->cols[i]->name))
@@ -224,7 +218,7 @@ static int check_cols(bptree_t *tree, datablock_t *block)
     return 1;
 }
 
-static column_t **update_column_metadata(const datablock_t *orig, const bptree_t *tree, void *key)
+static column_t **update_column_metadata(const datablock_t *orig, const bptree_t *tree, const void *key)
 {
     size_t ncols = tree->ncols;
     column_t **new_cols = calloc(ncols, sizeof(column_t *));
@@ -248,8 +242,8 @@ static column_t **update_column_metadata(const datablock_t *orig, const bptree_t
 
     for (size_t i = 1; i < ncols; ++i)
     {
-        const char *colname = tree->colnames[i];
-        const column_t *src_col = NULL;
+        char *colname = tree->colnames[i];
+        column_t *src_col = NULL;
 
         for (size_t j = 0; j < orig->ncols; ++j)
         {
@@ -297,9 +291,10 @@ static datablock_t *update_block_structure(const datablock_t *orig, const bptree
     if (!new_cols)
         return NULL;
 
-    datablock_t *new_block = init_block(tree->ncols, tree->colnames, tree->coltypes, NULL);
+    datablock_t *new_block = (datablock_t *)calloc(1, sizeof(datablock_t));
     if (!new_block)
     {
+        perror("new_block = calloc(1, sizeof(datablock_t))");
         for (size_t i = 0; i < tree->ncols; ++i)
             free_column(new_cols[i]);
         free(new_cols);
@@ -312,13 +307,20 @@ static datablock_t *update_block_structure(const datablock_t *orig, const bptree
     return new_block;
 }
 
-int bptree_add(bptree_t *tree, const void *key, datablock_t *block)
+int bptree_add(bptree_t *tree, void *key, datablock_t *block)
 {
     if (!tree || !key || !block)
         return 0;
 
-    if (!check_cols(tree, block) && !(block = update_block_structure(block, tree, key)))
-        return 0;
+    if (!check_cols(tree, block))
+    {
+        datablock_t *new_block = update_block_structure(block, tree, key);
+        if (!new_block)
+            return 0;
+
+        free_block(block);
+        block = new_block;
+    }
 
     bptree_node_t *curr = tree->root;
     size_t u = tree->u;
@@ -366,5 +368,508 @@ int bptree_add(bptree_t *tree, const void *key, datablock_t *block)
     return 1;
 }
 
+void bptree_delete_merge(bptree_node_t *node, size_t i, size_t j);
+void bptree_delete_sibling(bptree_node_t *node, size_t i, size_t j);
+void bptree_delete_internal(bptree_node_t *node, void * key, size_t i);
 
+struct key_dptr_pair
+{
+    void        *key;
+    datablock_t *dptr;
+};
+
+struct key_dptr_pair bptree_get_predecessor(bptree_node_t *node, size_t idx)
+{
+    node = node->children[idx];
+    while (!node->is_leaf)
+        node = node->children[node->nkeys];
+    return (struct key_dptr_pair){
+        .key=node->keys[node->nkeys - 1],
+        .dptr=node->dptr[node->nkeys - 1]
+    };
+}
+
+struct key_dptr_pair bptree_get_successor(bptree_node_t *node, size_t idx)
+{
+    node = node->children[idx + 1];
+    while (!node->is_leaf)
+        node = node->children[0];
+    return (struct key_dptr_pair){
+        .key=node->keys[0],
+        .dptr=node->dptr[0]
+    };
+}
+
+void bptree_merge(bptree_node_t *parent, size_t idx)
+{
+    bptree_node_t *child = parent->children[idx];
+    bptree_node_t *sibling = parent->children[idx + 1];
+
+    child->keys[child->nkeys] = parent->keys[idx];
+    child->dptr[child->nkeys] = parent->dptr[idx];
+    for (size_t i = 0; i < sibling->nkeys; ++i)
+    {
+        child->keys[child->nkeys + 1 + i] = sibling->keys[i];
+        child->dptr[child->nkeys + 1 + i] = sibling->dptr[i];
+    }
+
+    if (!child->is_leaf)
+    {
+        for (size_t i = 0; i <= sibling->nkeys; ++i)
+        {
+            child->children[child->nkeys + 1 + i] = sibling->children[i];
+            sibling->children[i] = NULL;
+        }
+    }
+
+    child->nkeys += 1 + sibling->nkeys;
+    child->next = sibling->next;
+    for (size_t i = idx; i + 1 < parent->nkeys; ++i)
+    {
+        parent->keys[i] = parent->keys[i + 1];
+        parent->dptr[i] = parent->dptr[i + 1];
+    }
+
+    for (size_t i = idx + 1; i + 1 <= parent->nkeys; ++i)
+        parent->children[i] = parent->children[i + 1];
+
+    parent->children[parent->nkeys] = NULL;
+    --parent->nkeys;
+
+    sibling->nkeys = 0;
+    free_bptree_node(sibling);
+}
+
+void bptree_fill(bptree_node_t *node, size_t idx)
+{
+    size_t u = node->u;
+
+    if (idx != 0 && node->children[idx - 1] && node->children[idx - 1]->nkeys >= u)
+    {
+        bptree_node_t *child = node->children[idx];
+        bptree_node_t *left = node->children[idx - 1];
+
+        for (size_t i = child->nkeys; i > 0; --i)
+        {
+            child->keys[i] = child->keys[i - 1];
+            child->dptr[i] = child->dptr[i - 1];
+        }
+
+        if (!child->is_leaf)
+        {
+            for (size_t i = child->nkeys + 1; i > 0; --i)
+                child->children[i] = child->children[i - 1];
+            child->children[0] = left->children[left->nkeys];
+            left->children[left->nkeys] = NULL;
+        }
+
+        child->keys[0] = node->keys[idx - 1];
+        child->dptr[0] = node->dptr[idx - 1];
+
+        node->keys[idx - 1] = left->keys[left->nkeys - 1];
+        node->dptr[idx - 1] = left->dptr[left->nkeys - 1];
+
+        ++child->nkeys;
+        --left->nkeys;
+        return;
+    }
+
+    if (idx != node->nkeys && node->children[idx + 1] && node->children[idx + 1]->nkeys >= u)
+    {
+        bptree_node_t *child = node->children[idx];
+        bptree_node_t *right = node->children[idx + 1];
+
+        child->keys[child->nkeys] = node->keys[idx];
+        child->dptr[child->nkeys] = node->dptr[idx];
+
+        if (!child->is_leaf)
+        {
+            child->children[child->nkeys + 1] = right->children[0];
+            for (size_t i = 0; i + 1 <= right->nkeys; ++i)
+                right->children[i] = right->children[i + 1];
+            right->children[right->nkeys] = NULL;
+        }
+
+        node->keys[idx] = right->keys[0];
+        node->dptr[idx] = right->dptr[0];
+
+        for (size_t i = 0; i + 1 < right->nkeys; ++i)
+        {
+            right->keys[i] = right->keys[i + 1];
+            right->dptr[i] = right->dptr[i + 1];
+        }
+
+        ++child->nkeys;
+        --right->nkeys;
+        return;
+    }
+
+    if (idx < node->nkeys)
+        bptree_merge(node, idx);
+    else
+        bptree_merge(node, idx - 1);
+}
+
+int bptree_remove_from_leaf(bptree_t *tree, void *key)
+{
+    if (!tree || !key)
+        return 0;
+
+    bptree_node_t *parent = tree->root;
+    bptree_node_t *curr = tree->root;
+    size_t u = tree->u;
+
+    size_t idx;
+    while (!curr->is_leaf)
+    {
+        parent = curr;
+
+        idx = 0;
+        while (idx < curr->nkeys && LT(tree->pktype, curr->keys[idx], key))
+            ++idx;
+
+        curr = curr->children[idx];
+    }
+
+    if (idx < parent->nkeys && EQ(tree->pktype, parent->keys[idx], key))
+    {
+        if (curr->is_leaf)
+        {
+            for (size_t i = idx; i + 1 < curr->nkeys; ++i)
+            {
+                curr->keys[i] = curr->keys[i + 1];
+                curr->dptr[i] = curr->dptr[i + 1];
+            }
+
+            --curr->nkeys;
+        } else
+        {
+            if (curr->children[idx]->nkeys >= u)
+            {
+                struct key_dptr_pair pred = bptree_get_predecessor(parent, idx);
+                parent->keys[idx] = pred.key;
+                parent->dptr[idx] = pred.dptr;
+                --curr->nkeys;
+            } else if (curr->children[idx + 1]->nkeys >= u)
+            {
+                struct key_dptr_pair succ = bptree_get_successor(parent, idx);
+                parent->keys[idx++] = succ.key;
+                parent->dptr[idx++] = succ.dptr;
+                curr = parent->children[idx];
+
+                for (size_t i = 0; i + 1 < curr->nkeys; ++i)
+                {
+                    curr->keys[i] = curr->keys[i + 1];
+                    curr->dptr[i] = curr->dptr[i + 1];
+                }
+
+                --curr->nkeys;
+            } else
+                bptree_merge(parent, idx);
+        }
+    } else
+    {
+        if (parent->children[idx]->nkeys < u)
+            bptree_fill(parent, idx);
+    }
+
+
+    return 1;
+}
+
+int bptree_remove_key(bptree_t *tree, void *key)
+{
+    if (!tree)
+        return 0;
+
+    bptree_node_t *curr = tree->root;
+    void *saved_key = key;
+    size_t u = curr->u;
+
+    while (curr)
+    {
+        size_t idx = 0;
+        while (idx < curr->nkeys && LT(tree->pktype, curr->keys[idx], key))
+            ++idx;
+
+        if (idx < curr->nkeys && EQ(tree->pktype, curr->keys[idx], key))
+        {
+            if (curr->is_leaf)
+            {
+                for (size_t i = idx; i + 1 < curr->nkeys; ++i)
+                {
+                    curr->keys[i] = curr->keys[i + 1];
+                    curr->dptr[i] = curr->dptr[i + 1];
+                }
+
+                --curr->nkeys;
+                break;
+            } else
+            {
+                if (curr->children[idx]->nkeys >= u)
+                {
+                    struct key_dptr_pair pred = bptree_get_predecessor(curr, idx);
+                    curr->keys[idx] = pred.key;
+                    curr->dptr[idx] = pred.dptr;
+                    key = pred.key;
+                } else if (curr->children[idx + 1]->nkeys >= u)
+                {
+                    struct key_dptr_pair succ = bptree_get_successor(curr, idx);
+                    curr->keys[idx++] = succ.key;
+                    curr->dptr[idx++] = succ.dptr;
+                    key = succ.key;
+                } else
+                    bptree_merge(curr, idx);
+            }
+        } else
+        {
+            if (curr->is_leaf)
+                break;
+
+            if (curr->children[idx]->nkeys < u)
+                bptree_fill(curr, idx);
+        }
+
+        curr = curr->children[idx];
+    }
+
+    if (saved_key != key && !bptree_remove_from_leaf(tree, saved_key))
+        return 0;
+
+    if (tree->root->nkeys == 0)
+    {
+        bptree_node_t *old = tree->root;
+        if (!old->is_leaf)
+            tree->root = old->children[0];
+
+        old->is_leaf = 1;
+        old->children = NULL;
+        free_bptree_node(old);
+    }
+ 
+    return 1;
+}
+
+struct key_list
+{
+    size_t    nkeys;
+    void    **keys;
+};
+
+struct key_list bptree_find(bptree_node_t *node, size_t colidx, const void *value)
+{
+    if (!node || !value)
+        return (struct key_list){ .nkeys=0, .keys=NULL };
+
+    struct key_list keys = { .nkeys=0, .keys=NULL };
+    if (node->is_leaf)
+    {
+        for (size_t i = 0; i < node->nkeys; ++i)
+        {
+            if (!column_cmp_value(node->dptr[i]->cols[colidx], value))
+            {
+                void **new_keys = realloc(keys.keys, (keys.nkeys + 1) * sizeof(void *));
+                if (!new_keys)
+                    continue;
+
+                keys.keys = new_keys;
+                keys.keys[keys.nkeys++] = node->keys[i];
+            }
+        }
+    } else
+    {
+        for (size_t i = 0; i <= node->nkeys; ++i)
+        {
+            struct key_list ckeys = bptree_find(node->children[i], colidx, value);
+            if (ckeys.nkeys)
+            {
+                void **new_keys = realloc(keys.keys, (keys.nkeys + ckeys.nkeys) * sizeof(void *));
+                if (new_keys)
+                {
+                    keys.keys = new_keys;
+                    for (size_t j = 0; j < ckeys.nkeys; ++j)
+                        keys.keys[keys.nkeys + j] = ckeys.keys[j];
+                    keys.nkeys += ckeys.nkeys;
+                }
+
+                free(ckeys.keys);
+            }
+        }
+    }
+
+    return keys;
+}
+
+datablock_t *bptree_get(const bptree_t *tree, const void *key)
+{
+    if (!tree || !key)
+    {
+        perror("!tree || !key");
+        return NULL;
+    }
+
+    bptree_node_t *curr = tree->root;
+    while (curr)
+    {
+        size_t idx = 0;
+        while (idx < curr->nkeys && GT(tree->pktype, key, curr->keys[idx]))
+            ++idx;
+
+        if (idx < curr->nkeys && EQ(tree->pktype, key, curr->keys[idx]))
+            return curr->dptr[idx];
+
+        curr = curr->children[idx];
+    }
+
+    print_value(tree->pktype, key);
+    fprintf(stderr, "not in btree.\n");
+    return NULL;
+}
+
+int bptree_remove(bptree_t *btree, const char *colname, void *value)
+{
+    if (!btree || !colname || !value)
+    {
+        perror("!btree || !colname || !value");
+        return 0;
+    }
+
+    if (!strcmp(colname, btree->pkname))
+        return bptree_remove_key(btree, value);
+
+    size_t idx = -1;
+    for (size_t i = 0; i < btree->ncols; ++i)
+        if (!strcmp(colname, btree->colnames[i]))
+        {
+            idx = i;
+            break;
+        }
+
+    if (idx == -1)
+    {
+        fprintf(stderr, "%s not in btree.\n", colname);
+        return 0;
+    }
+
+    struct key_list rkeys = bptree_find(btree->root, idx, value);
+    for (size_t i = 0; i < rkeys.nkeys; ++i)
+        if (!bptree_remove_key(btree, rkeys.keys[i]))
+            return 0;
+
+    return 1;
+}
+
+const dataframe_t *bptree_lookup_key(const bptree_t *tree, void *key)
+{
+    if (!tree || !key)
+        return NULL;
+
+    bptree_node_t *curr = tree->root;
+    while (curr)
+    {
+        size_t idx = 0;
+        while (idx < curr->nkeys && LT(tree->pktype, curr->keys[idx], key))
+            ++idx;
+
+        if (idx < curr->nkeys && EQ(tree->pktype, curr->keys[idx], key))
+        {
+            dataframe_t *lookup = init_frame(tree->ncols, tree->colnames, tree->coltypes);
+            frame_add(lookup, curr->dptr[idx]);
+            return lookup;
+        }
+
+        curr = curr->children[idx];
+    }
+
+    return NULL;
+}
+
+const dataframe_t *bptree_lookup(const bptree_t *tree, const char *colname, void *value)
+{
+    if (!tree || !colname || !value)
+    {
+        perror("!tree || !colname || !value");
+        return NULL;
+    }
+
+    if (!strcmp(colname, tree->pkname))
+        return bptree_lookup_key(tree, value);
+
+    size_t idx = -1;
+    for (size_t i = 0; i < tree->ncols; ++i)
+        if (!strcmp(colname, tree->colnames[i]))
+        {
+            idx = i;
+            break;
+        }
+
+    if (idx == -1)
+        return NULL;
+
+    struct key_list lkeys = bptree_find(tree->root, idx, value);
+    dataframe_t *frame = init_frame(tree->ncols, tree->colnames, tree->coltypes);
+    for (size_t i = 0; i < lkeys.nkeys; ++i)
+        if (!frame_add(frame, bptree_get(tree, lkeys.keys[i])))
+        {
+            free_frame(frame);
+            return NULL;
+        }
+
+    return frame;
+}
+
+int bptree_update_key(bptree_t *tree, const void *key, size_t colidx, void *value)
+{
+    if (!tree)
+        return 0;
+
+    bptree_node_t *curr = tree->root;
+    while (curr)
+    {
+        size_t idx = 0;
+        while (idx < curr->nkeys && LT(tree->pktype, curr->keys[idx], key))
+            ++idx;
+
+        if (idx < curr->nkeys && EQ(tree->pktype, curr->keys[idx], key))
+            return column_update(curr->dptr[idx]->cols[colidx], value);
+
+        curr = curr->children[idx];
+    }
+
+    return 0;
+}
+
+int bptree_update(bptree_t *tree, const char *keycol, const void *keyval, const char *colname, void *value)
+{
+    if (!tree || !colname || !value)
+    {
+        perror("!tree || !colname || !value");
+        return 0;
+    }
+
+    size_t kidx = -1, vidx = -1;
+    for (size_t i = 0; i < tree->ncols; ++i)
+        if (!strcmp(keycol, tree->colnames[i]))
+        {
+            kidx = i;
+            break;
+        }
+
+    for (size_t i = 0; i < tree->ncols; ++i)
+        if (!strcmp(colname, tree->colnames[i]))
+        {
+            vidx = i;
+            break;
+        }
+
+    if (kidx == -1 || vidx == -1)
+        return 0;
+
+    struct key_list ukeys = bptree_find(tree->root, kidx, keyval);
+    for (size_t i = 0; i < ukeys.nkeys; ++i)
+        if (!bptree_update_key(tree, ukeys.keys[i], vidx, value))
+            return 0;
+
+    return 1;
+}
 

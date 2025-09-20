@@ -11,7 +11,7 @@ static datablock_t *construct_block(const dataframe_t *frame, void **values)
     return init_block(frame->ncols, frame->colnames, frame->coltypes, values);
 }
 
-dataframe_t *init_frame(size_t ncols, const char **colnames, const type_e *coltypes)
+dataframe_t *init_frame(size_t ncols, char **colnames, type_e *coltypes)
 {
     dataframe_t *frame = (dataframe_t *)calloc(1, sizeof(dataframe_t));
     if (!frame)
@@ -61,6 +61,24 @@ void print_frame(const dataframe_t *frame)
     }
 }
 
+int frame_insert(dataframe_t *frame, void **values)
+{
+    if (!frame || !values)
+    {
+        perror("!frame || !values");
+        return 0;
+    }
+
+    datablock_t *block = construct_block(frame, values);
+    if (!frame_add(frame, block))
+    {
+        free_block(block);
+        return 0;
+    }
+
+    return 1;
+}
+
 #define MIN(x, y) ((x) > (y) ? y : x) 
 
 static int check_cols(dataframe_t *frame, datablock_t *block)
@@ -84,9 +102,8 @@ static column_t **update_column_metadata(const datablock_t *orig, const datafram
 
     for (size_t i = 0; i < ncols; ++i)
     {
-        const char *colname = frame->colnames[i];
-
-        const column_t *src_col = NULL;
+        char *colname = frame->colnames[i];
+        column_t *src_col = NULL;
         for (size_t j = 0; j < orig->ncols; ++j)
         {
             if (!strcmp(orig->cols[j]->name, colname))
@@ -133,9 +150,10 @@ static datablock_t *update_block_structure(const datablock_t *orig, const datafr
     if (!new_cols)
         return NULL;
 
-    datablock_t *new_block = init_block(frame->ncols, frame->colnames, frame->coltypes, NULL);
+    datablock_t *new_block = (datablock_t *)calloc(1, sizeof(datablock_t));
     if (!new_block)
     {
+        perror("new_block = calloc(1, sizeof(datablock_t))");
         for (size_t i = 0; i < frame->ncols; ++i)
             free_column(new_cols[i]);
         free(new_cols);
@@ -148,24 +166,6 @@ static datablock_t *update_block_structure(const datablock_t *orig, const datafr
     return new_block;
 }
 
-int frame_insert(dataframe_t *frame, void **values)
-{
-    if (!frame || !values)
-    {
-        perror("!frame || !values");
-        return 0;
-    }
-
-    datablock_t *block = construct_block(frame, values);
-    if (!frame_add(frame, block))
-    {
-        free_block(block);
-        return 0;
-    }
-
-    return 1;
-}
-
 int frame_add(dataframe_t *frame, datablock_t *block)
 {
     if (!frame || !block)
@@ -174,8 +174,15 @@ int frame_add(dataframe_t *frame, datablock_t *block)
         return 0;
     }
 
-    if (!check_cols(frame, block) && !(block = update_block_structure(block, frame)))
-        return 0;
+    if (!check_cols(frame, block))
+    {
+        datablock_t *new_block = update_block_structure(block, frame);
+        if (!new_block)
+            return 0;
+
+        free_block(block);
+        block = new_block;
+    }
 
     if (frame->nrows == frame->capacity)
     {

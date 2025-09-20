@@ -2,14 +2,16 @@
 #ifndef GDB_DATAFRAME_
 #define GDB_DATAFRAME_
 
+#include <stddef.h>
+
 #include "datablock.h"
 
 
 typedef struct
 {
     size_t        ncols;
-    const char  **colnames;
-    const type_e *coltypes;
+    char  **colnames;
+    type_e *coltypes;
 
     size_t        nrows;
     size_t        capacity;
@@ -17,7 +19,7 @@ typedef struct
 } dataframe_t;
 
 
-dataframe_t         *init_frame(size_t ncols, const char **colnames, const type_e *coltypes);
+dataframe_t         *init_frame(size_t ncols, char **colnames, type_e *coltypes);
 void                 free_frame(dataframe_t *frame);
 void                 print_frame(const dataframe_t *frame);
 

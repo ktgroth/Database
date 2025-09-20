@@ -6,7 +6,7 @@
 #include "include/table.h"
 
 
-table_t *init_table(const char *name, size_t ncols, const char **colnames, const type_e *coltypes, int indexed, const char *pkname, const type_e pktype)
+table_t *init_table(char *name, size_t ncols, char **colnames, type_e *coltypes, int indexed, char *pkname, type_e pktype)
 {
     table_t *tbl = (table_t *)calloc(1, sizeof(table_t));
     if (!tbl)
@@ -17,14 +17,13 @@ table_t *init_table(const char *name, size_t ncols, const char **colnames, const
 
     tbl->name = strdup(name);
     tbl->ncols = ncols;
-    tbl->colnames = (const char **)calloc(ncols, sizeof(const char *));
-    tbl->coltypes = (const type_e *)calloc(ncols, sizeof(const type_e));
+    tbl->colnames = (char **)calloc(ncols, sizeof(char *));
+    tbl->coltypes = (type_e *)calloc(ncols, sizeof(type_e));
 
-    type_e *cts = tbl->coltypes;
     for (size_t i = 0; i < ncols; ++i)
     {
         tbl->colnames[i] = strdup(colnames[i]);
-        cts[i] = coltypes[i];
+        tbl->coltypes[i] = coltypes[i];
     }
 
     if (indexed)
@@ -41,8 +40,8 @@ table_t *init_table(const char *name, size_t ncols, const char **colnames, const
 
         if (!contained)
         {
-            const char **new_colnames = realloc(tbl->colnames, (tbl->ncols + 1) * sizeof(const char *));
-            const type_e *new_coltypes = realloc(tbl->coltypes, (tbl->ncols + 1) * sizeof(const type_e));
+            char **new_colnames = realloc(tbl->colnames, (tbl->ncols + 1) * sizeof(const char *));
+            type_e *new_coltypes = realloc(tbl->coltypes, (tbl->ncols + 1) * sizeof(const type_e));
             if (!new_colnames || !new_coltypes)
             {
                 free_table(tbl);
@@ -51,17 +50,16 @@ table_t *init_table(const char *name, size_t ncols, const char **colnames, const
 
             tbl->colnames = new_colnames;
             tbl->coltypes = new_coltypes;
-            cts = tbl->coltypes;
 
             for (size_t i = tbl->ncols; i > 0; --i)
             {
                 tbl->colnames[i] = tbl->colnames[i - 1];
-                cts[i] = tbl->coltypes[i - 1];
+                tbl->coltypes[i] = tbl->coltypes[i - 1];
             }
 
             ++tbl->ncols;
             tbl->colnames[0] = strdup(pkname);
-            cts[0] = pktype;
+            tbl->coltypes[0] = pktype;
         }
 
         tbl->indexed = 1;
@@ -320,7 +318,7 @@ static void hex_to_ascii(const unsigned char in[32], char out[65])
     out[64] = '\0';
 }
 
-static const void *table_generate_key(table_t *tbl)
+static void *table_generate_key(table_t *tbl)
 {
     void *ptr = NULL;
     switch (tbl->pktype & ~KEY_PK & ~KEY_FK)
@@ -485,6 +483,8 @@ int table_remove_index(table_t *tbl, const char *colname)
     for (size_t i = idx; i + 1 < tbl->nidxs; ++i)
         tbl->idxs[i] = tbl->idxs[i + 1];
     --tbl->nidxs;
+
+    return 1;
 }
 
 #define MIN(x, y) ((x) > (y) ? y : x) 
@@ -528,9 +528,9 @@ static column_t **update_column_metadata(const datablock_t *orig, const table_t 
 
     for (size_t i = tbl->indexed != 0; i < ncols; ++i)
     {
-        const char *colname = tbl->colnames[i];
+        char *colname = tbl->colnames[i];
+        column_t *src_col = NULL;
 
-        const column_t *src_col = NULL;
         for (size_t j = 0; j < orig->ncols; ++j)
         {
             if (!strcmp(orig->cols[j]->name, colname))
@@ -600,7 +600,7 @@ int table_insert(table_t *tbl, void **values)
         return 0;
     }
 
-    const void *key = NULL;
+    void *key = NULL;
     if (tbl->indexed)
         key = table_generate_key(tbl);
 
@@ -643,8 +643,15 @@ int table_add(table_t *tbl, datablock_t *row)
     if (tbl->indexed)
         key = table_generate_key(tbl);
 
-    if (!check_cols(tbl, row) && !(row = update_block_structure(row, tbl, key)))
-        return 0;
+    if (!check_cols(tbl, row))
+    {
+        datablock_t *new_row = update_block_structure(row, tbl, key);
+        if (!new_row)
+            return 0;
+
+        free_block(row);
+        row = new_row;
+    }
 
     for (size_t i = 0; i < tbl->nidxs; ++i)
         if (!table_add_to_index(tbl->idxs[i], row))

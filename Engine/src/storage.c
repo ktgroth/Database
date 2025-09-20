@@ -6,7 +6,7 @@
 #include "include/storage.h"
 
 
-storage_t *init_storage(storage_type_e type, size_t ncols, const char **colnames, const type_e *coltypes, const char *pkname, const type_e pktype)
+storage_t *init_storage(storage_type_e type, size_t ncols, char **colnames, type_e *coltypes, char *pkname, type_e pktype)
 {
     storage_t *store = (storage_t *)calloc(1, sizeof(storage_t));
     if (!store)
@@ -46,7 +46,7 @@ void free_storage(storage_t *store)
     free(store);
 }
 
-int storage_insert(storage_t *store, const void *key, void **values)
+int storage_insert(storage_t *store, void *key, void **values)
 {
     switch (store->type)
     {
@@ -60,7 +60,7 @@ int storage_insert(storage_t *store, const void *key, void **values)
     return 0;
 }
 
-int storage_add(storage_t *store, const void *key, datablock_t *block)
+int storage_add(storage_t *store, void *key, datablock_t *block)
 {
     switch (store->type)
     {

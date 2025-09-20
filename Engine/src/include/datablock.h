@@ -12,7 +12,7 @@ typedef struct
 } datablock_t;
 
 
-datablock_t *init_block(size_t ncols, const char **colnames, const type_e *coltypes, void **values);
+datablock_t *init_block(size_t ncols, char **colnames, type_e *coltypes, void **values);
 void         free_block(datablock_t *block);
 
 

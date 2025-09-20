@@ -22,10 +22,10 @@ typedef struct
 {
     size_t            u;
     size_t            ncols;
-    const char      **colnames;
-    const type_e     *coltypes;
+    char            **colnames;
+    type_e           *coltypes;
 
-    const char       *pkname;
+    char             *pkname;
     type_e            pktype;
     btree_node_t     *root;
 } btree_t;
@@ -36,13 +36,13 @@ void free_btree_node(btree_node_t *node);
 void print_btree_node(const btree_node_t *node, type_e type);
 
 
-btree_t *init_btree(size_t u, size_t ncols, const char **colnames, const type_e *coltypes, const char *pkname, const type_e pktype);
+btree_t *init_btree(size_t u, size_t ncols, char **colnames, type_e *coltypes, char *pkname, type_e pktype);
 void free_btree(btree_t *tree);
 void print_btree(const btree_t *tree);
 
 
-int btree_insert(btree_t *tree, const void *key, void **values);
-int btree_add(btree_t *tree, const void *key, datablock_t *block);
+int btree_insert(btree_t *tree, void *key, void **values);
+int btree_add(btree_t *tree, void *key, datablock_t *block);
 int btree_remove_key(btree_t *tree, void *key);
 int btree_remove(btree_t *tree, const char *colname, void *value);
 const dataframe_t *btree_lookup_key(const btree_t *tree, void *key);

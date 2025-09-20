@@ -72,7 +72,7 @@ void print_btree_node(const btree_node_t *node, type_e type)
 }
 
 
-btree_t *init_btree(size_t u, size_t ncols, const char **colnames, const type_e *coltypes, const char *pkname, const type_e pktype)
+btree_t *init_btree(size_t u, size_t ncols, char **colnames, type_e *coltypes, char *pkname, type_e pktype)
 {
     btree_t *tree = (btree_t *)calloc(1, sizeof(btree_t));
     if (!tree)
@@ -125,7 +125,7 @@ void print_btree(const btree_t *tree)
 }
 
 
-int btree_insert(btree_t *tree, const void *key, void **values)
+int btree_insert(btree_t *tree, void *key, void **values)
 {
     datablock_t *block = construct_block(tree, values);
     return btree_add(tree, key, block);
@@ -211,8 +211,8 @@ static column_t **update_column_metadata(const datablock_t *orig, const btree_t 
 
     for (size_t i = 1; i < ncols; ++i)
     {
-        const char *colname = tree->colnames[i];
-        const column_t *src_col = NULL;
+        char *colname = tree->colnames[i];
+        column_t *src_col = NULL;
 
         for (size_t j = 0; j < orig->ncols; ++j)
         {
@@ -251,7 +251,7 @@ static column_t **update_column_metadata(const datablock_t *orig, const btree_t 
     return new_cols;
 }
 
-static datablock_t *update_block_structure(const datablock_t *orig, const btree_t *tree, const void *key)
+static datablock_t *update_block_structure(const datablock_t *orig, const btree_t *tree, void *key)
 {
     if (!orig || !tree || !key)
         return NULL;
@@ -260,9 +260,10 @@ static datablock_t *update_block_structure(const datablock_t *orig, const btree_
     if (!new_cols)
         return NULL;
 
-    datablock_t *new_block = init_block(tree->ncols, tree->colnames, tree->coltypes, NULL);
+    datablock_t *new_block = (datablock_t *)calloc(1, sizeof(datablock_t));
     if (!new_block)
     {
+        perror("new_block = calloc(1, sizeof(datablock_t))");
         for (size_t i = 0; i < tree->ncols; ++i)
             free_column(new_cols[i]);
         free(new_cols);
@@ -275,13 +276,20 @@ static datablock_t *update_block_structure(const datablock_t *orig, const btree_
     return new_block;
 }
 
-int btree_add(btree_t *tree, const void *key, datablock_t *block)
+int btree_add(btree_t *tree, void *key, datablock_t *block)
 {
     if (!tree)
         return 0;
 
-    if (!check_cols(tree, block) && !(block = update_block_structure(block, tree, key)))
-        return 0;
+    if (!check_cols(tree, block))
+    {
+        datablock_t *new_block = update_block_structure(block, tree, key);
+        if (!new_block)
+            return 0;
+
+        free_block(block);
+        block = new_block;
+    }
 
     btree_node_t *curr = tree->root;
     size_t u = tree->u;
@@ -545,7 +553,7 @@ struct key_list
     void    **keys;
 };
 
-struct key_list btree_find(btree_node_t *node, size_t colidx, void *value)
+struct key_list btree_find(btree_node_t *node, size_t colidx, const void *value)
 {
     if (!node || !value)
         return (struct key_list){ .nkeys=0, .keys=NULL };
@@ -733,7 +741,7 @@ int btree_update_key(btree_t *tree, const void *key, size_t colidx, void *value)
             ++idx;
 
         if (idx < curr->nkeys && EQ(tree->pktype, curr->keys[idx], key))
-            column_update(curr->dptr[idx]->cols[colidx], value);
+            return column_update(curr->dptr[idx]->cols[colidx], value);
 
         curr = curr->children[idx];
     }

@@ -6,7 +6,7 @@
 #include "include/column.h"
 
 
-column_t *init_column(const char *name, datafield_t *field)
+column_t *init_column(char *name, datafield_t *field)
 {
     column_t *column = (column_t *)calloc(1, sizeof(column_t));
     if (!column)
@@ -30,12 +30,12 @@ void free_column(column_t *column)
     free(column);
 }
 
-#define C(x, y, dst, src)          \
-    case x: {                      \
-        (dst) = malloc(sizeof(y)); \
+#define C(x, y, n, dst, src)          \
+    case (x): {                      \
+        (dst) = calloc((n), sizeof(y)); \
         if (!(dst))                \
             return NULL;           \
-        *(y *)(dst) = *(y*)(src);  \
+        memcpy((dst), (src), (n) * sizeof(y));  \
         break;                     \
     }
 
@@ -50,23 +50,18 @@ void *copy_key_value(type_e type, void *src)
         case COL_NULL:
             break;
 
-        C(COL_BOOL, int8_t, dst, src);
-        C(COL_INT8, int8_t, dst, src);
-        C(COL_INT16, int16_t, dst, src);
-        C(COL_INT32, int32_t, dst, src);
-        C(COL_INT64, int64_t, dst, src);
-        C(COL_FLOAT32, float, dst, src);
-        C(COL_FLOAT64, double, dst, src);
-
-        case COL_STRING:
-        case COL_DATETIME:
-            dst = strdup(src);
-            if (!dst)
-                return NULL;
-            break;
+        C(COL_BOOL, int8_t, 1, dst, src);
+        C(COL_INT8, int8_t, 1, dst, src);
+        C(COL_INT16, int16_t, 1, dst, src);
+        C(COL_INT32, int32_t, 1, dst, src);
+        C(COL_INT64, int64_t, 1, dst, src);
+        C(COL_FLOAT32, float, 1, dst, src);
+        C(COL_FLOAT64, double, 1, dst, src);
+        C(COL_STRING, char, strlen((const char *)src), dst, src);
+        C(COL_DATETIME, char, strlen((const char *)src), dst, src);
 
         case COL_BLOB:
-            blob_t *blob = malloc(sizeof(blob_t));
+            blob_t *blob = (blob_t *)malloc(sizeof(blob_t));
             if (!blob)
                 return NULL;
 
@@ -80,6 +75,10 @@ void *copy_key_value(type_e type, void *src)
 
             memcpy(blob->data, ((blob_t *)src)->data, blob->size);
             dst = blob;
+            break;
+
+        default:
+            fprintf(stderr, "[ERROR] Unhandled Type.");
             break;
     }
 

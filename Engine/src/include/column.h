@@ -2,6 +2,8 @@
 #ifndef GDB_COLUMN_
 #define GDB_COLUMN_
 
+#include <stddef.h>
+
 #include "types.h"
 
 
@@ -12,7 +14,7 @@ typedef struct
 } column_t;
 
 
-column_t    *init_column(const char *name, datafield_t *field);
+column_t    *init_column(char *name, datafield_t *field);
 void         free_column(column_t *column);
 
 

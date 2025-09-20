@@ -11,15 +11,15 @@
 
 typedef struct
 {
-    const char       *name;
+    char             *name;
     size_t            indexed;
 
     size_t            nidxs;
     btree_t         **idxs;
 
     size_t            ncols;
-    const char      **colnames;
-    const type_e     *coltypes;
+    char            **colnames;
+    type_e           *coltypes;
 
     size_t            nrows;
     char             *pkname;
@@ -28,8 +28,8 @@ typedef struct
 } table_t;
 
 
-table_t             *init_table(const char *name, size_t ncols, const char **colnames, const type_e *coltypes,
-                                int indexed, const char *pkname, const type_e pktype);
+table_t             *init_table(char *name, size_t ncols, char **colnames, type_e *coltypes,
+                                int indexed, char *pkname, type_e pktype);
 void                 free_table(table_t *tbl);
 void                 print_table(const table_t *tbl);
 void                 print_table_index(const table_t *tbl, const char *colname);

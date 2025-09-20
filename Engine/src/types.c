@@ -43,6 +43,10 @@ void print_value(type_e type, const void *value)
         case COL_BLOB:
             printf(" %-15p ", value);
             break;
+
+        default:
+            fprintf(stderr, "[ERROR] Unhandled type.");
+            break;
     }
 }
 
@@ -75,11 +79,18 @@ int value_cmp(type_e type, const void *a, const void *b)
         case COL_STRING:
             return strcmp((const char *)a, (const char *)b);
 
+
         default:
+            fprintf(stderr, "[ERROR] Unhandled Type.");
             return 1;
     }
 }
 
+#define C(type, field, value, ctype, n) \
+    case (type): \
+        (field)->value = calloc((n), sizeof(ctype)); \
+        memcpy((field)->value, (value), (n) * sizeof(ctype)); \
+        break;
 
 datafield_t *init_field(type_e type, const void *value)
 {
@@ -90,30 +101,31 @@ datafield_t *init_field(type_e type, const void *value)
         return NULL;
     }
 
+    type &= ~(KEY_PK | KEY_FK);
     field->type = type;
-    if (!value)
-        field->value = (void *)calloc(1, sizeof(blob_t));
-    else
+    if (value)
     {
-        switch (type & ~KEY_PK & ~KEY_FK)
+        switch (type)
         {
             case COL_NULL:
                 break;
 
-            case COL_BOOL:
-            case COL_INT8:
-            case COL_INT16:
-            case COL_INT32:
-            case COL_INT64:
-            case COL_FLOAT32:
-            case COL_FLOAT64:
-            case COL_STRING:
-            case COL_DATETIME:
-                field->value = value;
-                break;
+            C(COL_BOOL, field, value, int8_t, 1);
+            C(COL_INT8, field, value, int8_t, 1);
+            C(COL_INT16, field, value, int16_t, 1);
+            C(COL_INT32, field, value, int32_t, 1);
+            C(COL_INT64, field, value, int64_t, 1);
+            C(COL_FLOAT32, field, value, float, 1);
+            C(COL_FLOAT64, field, value, double, 1);
+
+            C(COL_STRING, field, value, char, strlen((const char *)value) + 1);
+            C(COL_DATETIME, field, value, char, strlen((const char *)value) + 1);
 
             case COL_BLOB:
                 field->blob = construct_blob_path(value);
+                break;
+
+            default:
                 break;
         }
     }
@@ -160,27 +172,35 @@ int field_update(datafield_t *field, const void *value)
     if (!field || !value)
         return 0;
 
-    switch (field->type & ~KEY_PK & ~KEY_FK)
+    if (field->type != COL_BLOB && field->value)
+    {
+        free(field->value);
+        field->value = NULL;
+    } else if (field->type == COL_BLOB && field->blob)
+    {
+        free_blob(field->blob);
+        field->blob = NULL;
+    }
+
+    switch (field->type & ~(KEY_PK | KEY_FK))
     {
         case COL_NULL:
             break;
 
-        case COL_BOOL:
-        case COL_INT8:
-        case COL_INT16:
-        case COL_INT32:
-        case COL_INT64:
-        case COL_FLOAT32:
-        case COL_FLOAT64:
-        case COL_STRING:
-        case COL_DATETIME:
-            field->value = value;
-            break;
+        C(COL_BOOL, field, value, int8_t, 1);
+        C(COL_INT8, field, value, int8_t, 1);
+        C(COL_INT16, field, value, int16_t, 1);
+        C(COL_INT32, field, value, int32_t, 1);
+        C(COL_INT64, field, value, int64_t, 1);
+        C(COL_FLOAT32, field, value, float, 1);
+        C(COL_FLOAT64, field, value, double, 1);
+
+        C(COL_STRING, field, value, char, strlen((const char *)value) + 1);
+        C(COL_DATETIME, field, value, char, strlen((const char *)value) + 1);
 
         case COL_BLOB:
             field->blob = construct_blob_path(value);
             break;
-
     }
 
     return 1;
