@@ -211,7 +211,7 @@ int frame_remove(dataframe_t *frame, const char *colname, void *value)
         return 0;
     }
 
-    size_t idx = -1;
+    size_t idx = -1ULL;
     for (size_t i = 0; i < frame->ncols; ++i)
     {
         if (!strcmp(colname, frame->colnames[i]))
@@ -221,7 +221,7 @@ int frame_remove(dataframe_t *frame, const char *colname, void *value)
         }
     }
 
-    if (idx == -1)
+    if (idx == -1ULL)
         return 0;
 
     for (size_t i = 0; i < frame->nrows; ++i)
@@ -247,7 +247,7 @@ const dataframe_t *frame_lookup(const dataframe_t *frame, const char *colname, v
         return NULL;
     }
 
-    size_t idx = -1;
+    size_t idx = -1ULL;
     for (size_t i = 0; i < frame->ncols; ++i)
         if (!strcmp(frame->colnames[i], colname))
         {
@@ -255,7 +255,7 @@ const dataframe_t *frame_lookup(const dataframe_t *frame, const char *colname, v
             break;
         }
 
-    if (idx == -1)
+    if (idx == -1ULL)
         return NULL;
 
     dataframe_t *lookup = init_frame(frame->ncols, frame->colnames, frame->coltypes);
@@ -274,7 +274,7 @@ int frame_update(dataframe_t *frame, const char *keyname, const void *keyval, co
     if (!frame || !colname || !value)
         return 0;
 
-    size_t kidx = -1, vidx = -1;
+    size_t kidx = -1ULL, vidx = -1ULL;
     for (size_t i = 0; i < frame->ncols; ++i)
         if (!strcmp(frame->colnames[i], keyname))
         {
@@ -289,7 +289,7 @@ int frame_update(dataframe_t *frame, const char *keyname, const void *keyval, co
             break;
         }
 
-    if (vidx == -1)
+    if (vidx == -1ULL)
         return 0;
 
     for (size_t i = 0; i < frame->nrows; ++i)

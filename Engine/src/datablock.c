@@ -38,7 +38,7 @@ int block_update(datablock_t *block, const char *colname, void *value)
     if (!block || !colname || !value)
         return 0;
 
-    size_t idx = -1;
+    size_t idx = -1ULL;
     for (size_t i = 0; i < block->ncols; ++i)
     {
         if (!strcmp(block->cols[i]->name, colname))
@@ -48,7 +48,7 @@ int block_update(datablock_t *block, const char *colname, void *value)
         }
     }
 
-    if (idx == -1)
+    if (idx == -1ULL)
         return 0;
 
     return column_update(block->cols[idx], value);

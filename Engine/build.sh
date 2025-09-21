@@ -24,7 +24,6 @@ function build {
     mkdir -p $OBJ
     mkdir -p $BUILD
 
-    echo "${SRCS[@]}"
     for i in "${!SRCS[@]}"; do
         src="${SRCS[$i]}"
         obj="${OBJSK[$i]}"

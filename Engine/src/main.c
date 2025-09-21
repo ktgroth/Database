@@ -56,6 +56,10 @@ int main(int argc, char *argv[])
     bptree_add(tree, (size_t []){ 2 }, row2);
     bptree_add(tree, (size_t []){ 3 }, row3);
     bptree_add(tree, (size_t []){ 4 }, row4);
+
+    extern void test_print(bptree_node_t *node, type_e type);
+    test_print(tree->root, tree->pktype);
+
     bptree_add(tree, (size_t []){ 5 }, row5);
     bptree_add(tree, (size_t []){ 6 }, row6);
     bptree_add(tree, (size_t []){ 7 }, row7);

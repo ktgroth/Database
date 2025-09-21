@@ -514,7 +514,7 @@ int btree_remove_key(btree_t *tree, void *key)
                 } else if (curr->children[idx + 1]->nkeys >= u)
                 {
                     struct key_dptr_pair succ = btree_get_successor(curr, idx);
-                    curr->keys[idx++] = succ.key;
+                    curr->keys[idx] = succ.key;
                     curr->dptr[idx++] = succ.dptr;
                     key = succ.key;
                 } else
@@ -522,6 +522,9 @@ int btree_remove_key(btree_t *tree, void *key)
             }
         } else
         {
+            if (curr->is_leaf)
+                break;
+
             if (curr->children[idx]->nkeys < u)
                 btree_fill(curr, idx);
 
@@ -647,7 +650,7 @@ int btree_remove(btree_t *btree, const char *colname, void *value)
     if (!strcmp(colname, btree->pkname))
         return btree_remove_key(btree, value);
 
-    size_t idx = -1;
+    size_t idx = -1ULL;
     for (size_t i = 0; i < btree->ncols; ++i)
         if (!strcmp(colname, btree->colnames[i]))
         {
@@ -655,7 +658,7 @@ int btree_remove(btree_t *btree, const char *colname, void *value)
             break;
         }
 
-    if (idx == -1)
+    if (idx == -1ULL)
     {
         fprintf(stderr, "%s not in btree.\n", colname);
         return 0;
@@ -705,7 +708,7 @@ const dataframe_t *btree_lookup(const btree_t *tree, const char *colname, void *
     if (!strcmp(colname, tree->pkname))
         return btree_lookup_key(tree, value);
 
-    size_t idx = -1;
+    size_t idx = -1ULL;
     for (size_t i = 0; i < tree->ncols; ++i)
         if (!strcmp(colname, tree->colnames[i]))
         {
@@ -713,7 +716,7 @@ const dataframe_t *btree_lookup(const btree_t *tree, const char *colname, void *
             break;
         }
 
-    if (idx == -1)
+    if (idx == -1ULL)
         return NULL;
 
     struct key_list lkeys = btree_find(tree->root, idx, value);
@@ -757,7 +760,7 @@ int btree_update(btree_t *tree, const char *keycol, const void *keyval, const ch
         return 0;
     }
 
-    size_t kidx = -1, vidx = -1;
+    size_t kidx = -1ULL, vidx = -1ULL;
     for (size_t i = 0; i < tree->ncols; ++i)
         if (!strcmp(keycol, tree->colnames[i]))
         {
@@ -772,7 +775,7 @@ int btree_update(btree_t *tree, const char *keycol, const void *keyval, const ch
             break;
         }
 
-    if (kidx == -1 || vidx == -1)
+    if (kidx == -1ULL || vidx == -1ULL)
         return 0;
 
     struct key_list ukeys = btree_find(tree->root, kidx, keyval);

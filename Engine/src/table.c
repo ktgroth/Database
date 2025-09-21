@@ -175,7 +175,7 @@ void print_table_index(const table_t *tbl, const char *colname)
         return;
     }
 
-    size_t iidx = -1, cidx = -1;
+    size_t iidx = -1ULL, cidx = -1ULL;
     for (size_t i = 0; i < tbl->nidxs; ++i)
         if (!strcmp(colname, tbl->idxs[i]->pkname))
         {
@@ -190,7 +190,7 @@ void print_table_index(const table_t *tbl, const char *colname)
             break;
         }
 
-    if (iidx == -1 || cidx == -1)
+    if (iidx == -1ULL || cidx == -1ULL)
     {
         fprintf(stderr, "%s has no associated index.", colname);
         return;
@@ -321,7 +321,7 @@ static void hex_to_ascii(const unsigned char in[32], char out[65])
 static void *table_generate_key(table_t *tbl)
 {
     void *ptr = NULL;
-    switch (tbl->pktype & ~KEY_PK & ~KEY_FK)
+    switch (tbl->pktype & ~(KEY_PK | KEY_FK))
     {
         case COL_BOOL:
         case COL_INT8:
@@ -367,6 +367,7 @@ static void *table_generate_key(table_t *tbl)
             return key;
 
         default:
+            fprintf(stderr, "[ERROR] Unhandled type.");
             break;
     }
 
@@ -417,7 +418,7 @@ int table_add_index(table_t *tbl, const char *colname)
         return 0;
     }
 
-    size_t idx = -1;
+    size_t idx = -1ULL;
     for (size_t i = 0; i < tbl->ncols; ++i)
         if (!strcmp(colname, tbl->colnames[i]))
         {
@@ -425,7 +426,7 @@ int table_add_index(table_t *tbl, const char *colname)
             break;
         }
 
-    if (idx == -1)
+    if (idx == -1ULL)
         return 0;
 
     btree_t *index = init_btree(80, tbl->ncols, tbl->colnames, tbl->coltypes, tbl->colnames[idx], tbl->coltypes[idx]);
@@ -465,7 +466,7 @@ int table_remove_index(table_t *tbl, const char *colname)
         return 0;
     }
 
-    size_t idx = -1;
+    size_t idx = -1ULL;
     for (size_t i = 0; i < tbl->nidxs; ++i)
         if (!strcmp(colname, tbl->idxs[i]->pkname))
         {
@@ -473,7 +474,7 @@ int table_remove_index(table_t *tbl, const char *colname)
             break;
         }
 
-    if (idx == -1)
+    if (idx == -1ULL)
     {
         fprintf(stderr, "%s has no associated index.", colname);
         return 0;
@@ -617,7 +618,7 @@ static int table_add_to_index(btree_t *tree, datablock_t *row)
 {
     const char *colname = tree->pkname;
 
-    size_t idx = -1;
+    size_t idx = -1ULL;
     for (size_t i = 0; i < row->ncols; ++i)
         if (!strcmp(colname, row->cols[i]->name))
         {
@@ -625,7 +626,7 @@ static int table_add_to_index(btree_t *tree, datablock_t *row)
             break;
         }
 
-    if (idx == -1)
+    if (idx == -1ULL)
         return 0;
 
     return btree_add(tree, row->cols[idx]->field->value, row);

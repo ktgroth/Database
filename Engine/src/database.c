@@ -86,7 +86,7 @@ const size_t sizes[] = {
 static int database_write_field(FILE *fp, const datafield_t *field)
 {
     void *value = field->value;
-    type_e type = field->type & ~KEY_PK & ~KEY_FK;
+    type_e type = field->type & ~(KEY_PK | KEY_FK);
 
     switch (type) {
         case COL_NULL:
@@ -102,15 +102,19 @@ static int database_write_field(FILE *fp, const datafield_t *field)
 
         case COL_STRING:
         case COL_DATETIME:
-            const char *str = (const char *)value;
+            char *str = (char *)value;
             WRITE_OR_FAIL(str, 1, strlen(str) + 1, fp);
             break;
 
         case COL_BLOB:
-            const blob_t *blob = (const blob_t *)value;
+            blob_t *blob = (blob_t *)value;
             WRITE_OR_FAIL(&blob->size, sizeof(size_t), 1, fp);
             WRITE_OR_FAIL(blob->data, 1, blob->size, fp);
             break;
+
+        default:
+            fprintf(stderr, "[ERROR] Unhandled type.");
+            return 0;
     }
 
     return 1;
@@ -232,7 +236,7 @@ database_t *database_read(FILE *fp)
     if (!fp)
         return NULL;
 
-    
+    return NULL;
 }
 
 int database_add_table(database_t *db, table_t *tbl)
