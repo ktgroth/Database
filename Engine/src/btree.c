@@ -672,28 +672,62 @@ int btree_remove(btree_t *btree, const char *colname, void *value)
     return 1;
 }
 
+static size_t tabs = 0;
+static void test_print(btree_node_t *node, type_e type)
+{
+    if (!node)
+        return;
+
+    for (size_t i = 0; i < node->nkeys; ++i)
+    {
+        ++tabs;
+        if (!node->is_leaf)
+            test_print(node->children[i], type);
+        --tabs;
+
+        for (size_t j = 0; j < tabs; ++j)
+            printf("\t");
+        print_value(type, node->keys[i]);
+        puts("");
+    }
+
+    ++tabs;
+    if (!node->is_leaf)
+        test_print(node->children[node->nkeys], type);
+    --tabs;
+}
+
+void btree_lookup_key_r(dataframe_t *frame, const btree_node_t *node, void *key, type_e type)
+{
+    if (!node || !key)
+        return;
+
+    size_t idx = 0;
+    while (idx < node->nkeys && LT(type, node->keys[idx], key))
+        ++idx;
+
+    while (idx < node->nkeys && EQ(type, node->keys[idx], key))
+    {
+        btree_lookup_key_r(frame, node->children[idx], key, type);
+        frame_add(frame, node->dptr[idx]);
+        ++idx;
+    }
+
+    btree_lookup_key_r(frame, node->children[idx], key, type);
+}
+
 const dataframe_t *btree_lookup_key(const btree_t *tree, void *key)
 {
     if (!tree || !key)
         return NULL;
 
-    btree_node_t *curr = tree->root;
-    while (curr)
-    {
-        size_t idx = 0;
-        while (idx < curr->nkeys && LT(tree->pktype, curr->keys[idx], key))
-            ++idx;
+    dataframe_t *lookup = init_frame(tree->ncols, tree->colnames, tree->coltypes);
+    btree_lookup_key_r(lookup, tree->root, key, tree->pktype);
 
-        if (idx < curr->nkeys && EQ(tree->pktype, curr->keys[idx], key))
-        {
-            dataframe_t *lookup = init_frame(tree->ncols, tree->colnames, tree->coltypes);
-            frame_add(lookup, curr->dptr[idx]);
-            return lookup;
-        }
+    if (lookup->nrows)
+        return lookup;
 
-        curr = curr->children[idx];
-    }
-
+    free_frame(lookup);
     return NULL;
 }
 

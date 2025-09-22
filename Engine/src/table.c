@@ -429,7 +429,7 @@ int table_add_index(table_t *tbl, const char *colname)
     if (idx == -1ULL)
         return 0;
 
-    btree_t *index = init_btree(80, tbl->ncols, tbl->colnames, tbl->coltypes, tbl->colnames[idx], tbl->coltypes[idx]);
+    btree_t *index = init_btree(2, tbl->ncols, tbl->colnames, tbl->coltypes, tbl->colnames[idx], tbl->coltypes[idx]);
     btree_t **new_idxs = realloc(tbl->idxs, (tbl->nidxs + 1) * sizeof(btree_t *));
     if (!new_idxs)
     {
@@ -701,7 +701,9 @@ const dataframe_t *table_lookup(const table_t *tbl, const char *colname, void *v
 
     for (size_t i = 0; i < tbl->nidxs; ++i)
         if (!strcmp(tbl->idxs[i]->pkname, colname))
+        {
             return btree_lookup_key(tbl->idxs[i], value);
+        }
 
     return storage_lookup(tbl->rows, colname, value);
 }
